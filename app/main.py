@@ -1,5 +1,5 @@
 from flask import render_template, url_for, request, session, json
-from app import webapp
+from app import webapp, db, FILEINFO
 from collections import OrderedDict
 import boto3
 from pathlib import Path
@@ -16,9 +16,7 @@ os_file_path = os.getcwd()
 bucket_name = 'ece1779-winter23-a3-bucket'
 def provision_aws():
     global s3client
-    global db_client
     s3client = boto3.client('s3', region_name='us-east-1')
-    db_client = boto3.client('DynamoDB', region_name='us-east-1')
     print("Provision done")
 provision_aws()
 
@@ -45,8 +43,10 @@ def upload():
         'size': imageSize, 
         'name': filename
     }
-    # requests.post(memcache_pool_url + '/put', params=requestJson) TODO: AWS Cache service
-    # requests.post(webapp_url + '/uploadToDB', params=requestJson) TODO: DynamoDB
+    full_file_path = os.path.join(os_file_path, filename)
+    # requests.post(memcache_pool_url + '/put', params=requestJson) TODO: AWS Cache service + S3
+    # requests.post(webapp_url + '/uploadToDB', params=requestJson) TODO: dynamodb
+    db.insertFileInfo(tableName='fileInfo', fileInfo=FILEINFO(key, full_file_path, imageSize))
     
     resp = OrderedDict([("success", "true"), ("key", key)])
     response = webapp.response_class(
@@ -62,8 +62,9 @@ def retrieve(key_value):
     requestJson = {
         'key': key_value
     }
-    # res = requests.post(webapp_url + '/getFromS3', params=requestJson)
+    # res = requests.post(webapp_url + '/getFromS3', params=requestJson) # TODO: S3 + DynamoDB
     res = None
+    fileInfo = db.readFileInfo('fileInfo', key_value)
     if res.status_code == 400:
         resp = OrderedDict()
         resp["success"] = "false"
@@ -98,7 +99,6 @@ def retrieve(key_value):
         )
     return response
 
-
 @webapp.route('/delete_all', methods=['POST'])
 def delete_all():
     """
@@ -109,7 +109,8 @@ def delete_all():
     if 'Contents' in response: 
         for obj in response['Contents']:
             s3client.delete_object(Bucket=bucket_name, Key=obj['Key'])
-    #db.delAllFileInfo() TODO: DynamoDB
+    #db.delAllFileInfo() TODO: dynamodb
+    db.delAllFileInfo(tableName='fileInfo')
     
     # requests.post(memcache_pool_url + '/clear') TODO: AWS Cache service
     resp = {
