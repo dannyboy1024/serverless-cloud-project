@@ -6,8 +6,8 @@ from botocore.exceptions import ClientError
 
 
 boto_session = boto3.Session(
-    aws_access_key_id = 'AKIAVW4WDBYWC5TM7LHC',
-    aws_secret_access_key = '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',
+    aws_access_key_id = 'AKIAVW4WDBYWM3DT23W7',
+    aws_secret_access_key = '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',
     region_name='us-east-1'
 )
 dynamodb = boto_session.resource('dynamodb')
@@ -27,28 +27,28 @@ class DB:
 
         ##################### Create a File Info table #########################
         currentTables = dynamodb_client.list_tables()['TableNames']
+        tableName = 'fileInfo'
+        primaryKey = 'fileKey'
         if 'fileInfo' not in currentTables:
-            self.createTable(
-                tableName  = 'fileInfo', 
-                primaryKey = 'fileKey', 
-                attributes = [
-                    {
-                        'AttributeName': 'fileLocation',
-                        'AttributeType': 'S'
-                    }
-                ]
-            )
+            self.createTable(tableName, primaryKey)
 
-    def createTable(tableName, primaryKey, attributes):
+    def createTable(self, tableName, primaryKey):
+        keySchema = [
+            {
+                'AttributeName': primaryKey,
+                'KeyType': 'HASH'  # Partition key
+            }
+        ]
+        keyAttribute = [
+            {
+                'AttributeName': primaryKey,
+                'AttributeType': 'S'
+            }
+        ]
         table = dynamodb.create_table(
-            TableName=tableName,
-            KeySchema=[
-                {
-                    'AttributeName': primaryKey,
-                    'KeyType': 'HASH'  # Partition key
-                }
-            ],
-            AttributeDefinitions = attributes[:],
+            TableName = tableName,
+            KeySchema = keySchema[:],
+            AttributeDefinitions = keyAttribute[:],
             ProvisionedThroughput={
                 'ReadCapacityUnits': 5,
                 'WriteCapacityUnits': 5

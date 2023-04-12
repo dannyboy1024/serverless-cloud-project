@@ -4,16 +4,16 @@ from collections import OrderedDict
 import boto3
 from pathlib import Path
 import os
-import hashlib
+# import hashlib
 import base64
 import requests
-import plotly.graph_objs as go
-import pytz
+# import plotly.graph_objs as go
+# import pytz
 from datetime import datetime, timedelta
 
 # AWS Setup
 os_file_path = os.getcwd()
-bucket_name = 'ece1779-winter23-a3-bucket'
+bucket_name = 'ece1779-a3-files'
 def provision_aws():
     global s3client
     s3client = boto3.client('s3', region_name='us-east-1')
@@ -27,6 +27,14 @@ def main():
 
 @webapp.route('/upload', methods=['GET', 'POST'])
 def upload():
+
+    # resp = OrderedDict([("success", "true"), ("key", '123')])
+    # return webapp.response_class(
+    #     response=json.dumps(resp),
+    #     status=200,
+    #     mimetype='application/json'
+    # )
+
     # upload image with key
     # transfer the bytes into dict
     s3client = boto3.client('s3', region_name='us-east-1')
@@ -63,8 +71,16 @@ def upload():
 
     return response
 
-@webapp.route('/retrieve/<key_value>', methods=['GET', 'POST'])
-def retrieve(key_value):
+@webapp.route('/retrieve', methods=['GET', 'POST'])
+def retrieve():
+
+    resp = OrderedDict([("success", "true"), ("key", '123')])
+    return webapp.response_class(
+        response=json.dumps(resp),
+        status=200,
+        mimetype='application/json'
+    )
+
     s3client = boto3.client('s3', region_name='us-east-1')
     requestJson = {
         'key': key_value
@@ -107,8 +123,16 @@ def retrieve(key_value):
 
     return response
 
-@webapp.route('/delete_all', methods=['POST'])
+@webapp.route('/delete_all', methods=['GET', 'POST'])
 def delete_all():
+
+    # resp = OrderedDict([("success", "true"), ("key", '123')])
+    # return webapp.response_class(
+    #     response=json.dumps(resp),
+    #     status=200,
+    #     mimetype='application/json'
+    # )
+
     """
     Remove all the key and values (files, images) from the database and filesystem
     No inputs required
