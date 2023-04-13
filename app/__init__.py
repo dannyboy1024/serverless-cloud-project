@@ -19,6 +19,12 @@ class FILEINFO:
         self.fileLocation = location
         self.fileSize = size
 
+class PerformanceMetrics: 
+    def __init__(self, CPU, Mem, Disk):
+        self.CPU_Usage = CPU
+        self.Mem_Usage = Mem
+        self.Disk_Usage = Disk
+
 class DB:
 
     # Create a db and a table
@@ -30,6 +36,10 @@ class DB:
         tableName = 'fileInfo'
         primaryKey = 'fileKey'
         if 'fileInfo' not in currentTables:
+            self.createTable(tableName, primaryKey)
+        tableName = 'performanceMetrics'
+        primaryKey = 'performanceTimeStamp'
+        if 'performanceMetrics' not in currentTables:
             self.createTable(tableName, primaryKey)
 
     def createTable(self, tableName, primaryKey):
@@ -79,7 +89,19 @@ class DB:
         print("Successfully inserted data into {} table".format(tableName))
         return
 
-
+    def insertPerformanceMetrics(self, tableName, performanceMetrics):
+    
+        table = dynamodb.Table(tableName)
+        table.put_item(
+            Item = { 
+                'CPU_Usage' : performanceMetrics.CPU_Usage,
+                'Mem_Usage' : performanceMetrics.Mem_Usage,
+                'Disk_Usage': performanceMetrics.Disk_Usage
+            }
+        )
+        print("Successfully inserted data into {} table".format(tableName))
+        return
+    
     #######################################
     ###########     Read     ##############
     #######################################
