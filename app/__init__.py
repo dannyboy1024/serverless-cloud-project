@@ -20,7 +20,8 @@ class FILEINFO:
         self.fileSize = size
 
 class PerformanceMetrics: 
-    def __init__(self, CPU, Mem, Disk):
+    def __init__(self, performanceTimeStamp, CPU, Mem, Disk):
+        self.performanceTimeStamp = performanceTimeStamp
         self.CPU_Usage = CPU
         self.Mem_Usage = Mem
         self.Disk_Usage = Disk
@@ -94,9 +95,10 @@ class DB:
         table = dynamodb.Table(tableName)
         table.put_item(
             Item = { 
-                'CPU_Usage' : performanceMetrics.CPU_Usage,
-                'Mem_Usage' : performanceMetrics.Mem_Usage,
-                'Disk_Usage': performanceMetrics.Disk_Usage
+                'performanceTimeStamp'  : performanceMetrics.performanceTimeStamp, 
+                'CPU_Usage'             : performanceMetrics.CPU_Usage,
+                'Mem_Usage'             : performanceMetrics.Mem_Usage,
+                'Disk_Usage'            : performanceMetrics.Disk_Usage
             }
         )
         print("Successfully inserted data into {} table".format(tableName))
