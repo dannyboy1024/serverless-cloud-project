@@ -14,10 +14,10 @@ dynamodb = boto_session.resource('dynamodb')
 dynamodb_client = boto_session.client('dynamodb')
 
 class FILEINFO:
-    def __init__(self, key, location, size):
-        self.fileKey = key
-        self.fileLocation = location
-        self.fileSize = size
+    def __init__(self, fileKey, fileLocation, fileSize):
+        self.fileKey = fileKey
+        self.fileLocation = fileLocation
+        self.fileSize = fileSize
 
 class DB:
 
