@@ -4,7 +4,6 @@ Overview:
     - Home page (Frontend)
         Register / Login
     - Main page (Frontend)
-        - Users start with a Default album
         - Manually create albums
         - Automatically create albums
         - Showing a list of albums on the left of the screen maybe
