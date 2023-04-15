@@ -31,7 +31,7 @@ Overview:
     }
     resp = {
         'success' : # success / fail [Boolean] 
-        'image'   : # Image content and Image Name [{content, name}]
+        'image'   : # Image content 
     }
 
 3.  /delete_image
@@ -84,7 +84,7 @@ Overview:
         'album' : # Album name [String]
     }
     resp = {
-        'images' : # All the images in the album [List]
+        'images' : Image content and Image Name [{content, name}]
     }
 
 8.  /sage_display_album
