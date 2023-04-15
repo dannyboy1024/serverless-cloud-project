@@ -31,7 +31,7 @@ Overview:
     }
     resp = {
         'success' : # success / fail [Boolean] 
-        'image'   : # Image content [Same as A2]
+        'image'   : # Image content and Image Name [{content, name}]
     }
 
 3.  /delete_image
