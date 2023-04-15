@@ -56,7 +56,13 @@ Overview:
         'isAuto' : # Is in Automatic mode ? [Boolean]
     }
     resp = {
-        'albumNames' : # List of album names [List]
+        'covers' : [
+            {
+                'albumName' : # album name  [String]
+                'coverImage' : # cover image [same as A2]
+            },
+            ...
+        ] [List]
     }
 
 6.  /get_album_names
@@ -64,7 +70,13 @@ Overview:
         # None
     }
     resp = {
-        'albumNames' : # List of album names [List]
+        'covers' : [
+            {
+                'albumName' : # album name  [String]
+                'coverImage' : # cover image [same as A2]
+            },
+            ...
+        ] [List]
     }
 
 7.  /display_album
@@ -108,4 +120,21 @@ Overview:
     }
     resp = {
         'success' : # success / fail [Boolean]
+    }
+
+12. /logout
+    req = {
+        'id'       : # Account name [String]
+        'password' : # Password     [String]
+    }
+    resp = {
+        'success' : # success / fail [Boolean]
+    }
+
+13. /overwrite_manual_albums
+    req = {
+        # None
+    }
+    resp = {
+        'success' : # success / fail [Boolean] 
     }
