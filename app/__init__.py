@@ -13,11 +13,22 @@ boto_session = boto3.Session(
 dynamodb = boto_session.resource('dynamodb')
 dynamodb_client = boto_session.client('dynamodb')
 
+class ACCOUNTINFO:
+    def __init__(self, accoID, accoPasswd):
+        self.accoID     = accoID
+        self.accoPasswd = accoPasswd
+
+class ALBUMINFO:
+    def __init__(self, albumName, albumType):
+        self.albumName = albumName
+        self.albumType = albumType
+
 class FILEINFO:
-    def __init__(self, fileKey, fileLocation, fileSize):
-        self.fileKey = fileKey
+    def __init__(self, fileName, fileBucket, fileLocation, fileSize):
+        self.fileName     = fileName
+        self.fileBucket   = fileBucket
         self.fileLocation = fileLocation
-        self.fileSize = fileSize
+        self.fileSize     = fileSize
 
 class PerformanceMetrics: 
     def __init__(self, performanceTimeStamp, CPU, Mem, Disk):
@@ -28,34 +39,69 @@ class PerformanceMetrics:
 
 class DB:
 
-    # Create a db and a table
-    #    File Info
     def __init__(self):
 
-        ##################### Create a File Info table #########################
+        # List all the tables
         currentTables = dynamodb_client.list_tables()['TableNames']
-        tableName = 'fileInfo'
-        primaryKey = 'fileKey'
-        if 'fileInfo' not in currentTables:
+
+        # Initialize an account table
+        tableName = 'accounts'
+        primaryKey = 'accoID'
+        if 'accounts' not in currentTables:
             self.createTable(tableName, primaryKey)
+
+        # Initialize a performance metric table
         tableName = 'performanceMetrics'
         primaryKey = 'performanceTimeStamp'
         if 'performanceMetrics' not in currentTables:
             self.createTable(tableName, primaryKey)
+        
+        # Table name -> pKey, sKey names
+        self.TABLE_KEY_MP = {
+            'accounts'           : {'pKey' : 'accoID',               'sKey' : None        },
+            'album'              : {'pKey' : 'albumName',            'sKey' : 'albumType' },
+            'image'              : {'pKey' : 'fileName',             'sKey' : 'fileBucket'},
+            'performanceMetrics' : {'pKey' : 'performanceTimeStamp', 'sKey' : None        }
+        }
 
-    def createTable(self, tableName, primaryKey):
-        keySchema = [
-            {
-                'AttributeName': primaryKey,
-                'KeyType': 'HASH'  # Partition key
-            }
-        ]
-        keyAttribute = [
-            {
-                'AttributeName': primaryKey,
-                'AttributeType': 'S'
-            }
-        ]
+    def createTable(self, tableName, pKeyName, sKeyName=None):
+        if sKeyName == None:
+            # Simple
+            keySchema = [
+                {
+                    'AttributeName': pKeyName,
+                    'KeyType': 'HASH'  # Partition key
+                }
+            ]
+            keyAttribute = [
+                {
+                    'AttributeName': pKeyName,
+                    'AttributeType': 'S'
+                }
+            ]
+        else:
+            # Composite
+            keySchema = [
+                {
+                    'AttributeName': pKeyName,
+                    'KeyType': 'HASH'  # Partition key
+                },
+                {
+                    'AttributeName': sKeyName,
+                    'KeyType': 'RANGE'  # Sort key
+                }
+            ]
+            keyAttribute = [
+                {
+                    'AttributeName': pKeyName,
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': sKeyName,
+                    'AttributeType': 'S'
+                }
+            ]
+
         table = dynamodb.create_table(
             TableName = tableName,
             KeySchema = keySchema[:],
@@ -77,16 +123,32 @@ class DB:
     #######################################
     ###########    Create    ##############
     ####################################### 
-    def insertFileInfo(self, tableName, fileInfo):
 
+    def insertEntry(self, tableName, entryInfo):
         table = dynamodb.Table(tableName)
-        table.put_item(
-            Item = { 
-                'fileKey'     : fileInfo.fileKey,
-                'fileSize'    : fileInfo.fileSize,
-                'fileLocation': fileInfo.fileLocation
-            }
-        )
+        if tableName == 'accounts':
+            table.put_item(
+                Item = { 
+                    'accoID'     : entryInfo.accoID,
+                    'accoPasswd' : entryInfo.accoPasswd,
+                }
+            )
+        elif 'album' in tableName:
+            table.put_item(
+                Item = {
+                    'albumName'  : entryInfo.albumName,
+                    'albumType'  : entryInfo.albumType
+                }
+            )
+        elif 'image' in tableName:
+            table.put_item(
+                Item = { 
+                    'fileName'    : entryInfo.fileName,
+                    'fileBucket'  : entryInfo.fileBucket,
+                    'fileLocation': entryInfo.fileLocation,
+                    'fileSize'    : entryInfo.fileSize
+                }
+            )
         print("Successfully inserted data into {} table".format(tableName))
         return
 
@@ -103,10 +165,84 @@ class DB:
         )
         print("Successfully inserted data into {} table".format(tableName))
         return
-    
+
+    # tmp
+    def insertFileInfo(self, tableName, fileInfo):
+
+        table = dynamodb.Table(tableName)
+        table.put_item(
+            Item = { 
+                'fileKey'     : fileInfo.fileKey,
+                'fileSize'    : fileInfo.fileSize,
+                'fileLocation': fileInfo.fileLocation
+            }
+        )
+        print("Successfully inserted data into {} table".format(tableName))
+        return
+
     #######################################
     ###########     Read     ##############
     #######################################
+    def readEntry(self, tableName, pKey, sKey=None):
+
+        table   = dynamodb.Table(tableName)
+        tableType = 'accounts'
+        if 'image' in tableName:
+            tableType = 'image'
+        elif 'album' in tableName:
+            tableType = 'album'
+        pKeyName = self.TABLE_KEY_MP[tableType]['pKey']
+        sKeyName = self.TABLE_KEY_MP[tableType]['sKey']
+        try:
+            req = {pKeyName : pKey} if sKey==None else {pKeyName : pKey, sKeyName : sKey}
+            response = table.get_item(
+                Key = req
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                print("Table does not exist")
+            elif e.response['Error']['Code'] == 'ValidationError':
+                print("Invalid parameter: " + e.response['Error']['Message'])
+            else:
+                print("Unexpected error: " + e.response['Error']['Message'])
+        else:
+            if 'Item' not in response:
+                print("Item not found :(")
+                return None
+            else:
+                item = response['Item']
+                if tableName == 'accounts':
+                    return ACCOUNTINFO(**item)
+                elif 'album' in tableName:
+                    return ALBUMINFO(**item)
+                elif 'images' in tableName:
+                    return FILEINFO(**item)
+
+    def readEntries(self, tableName, attriName, attriVal):
+        table = dynamodb.Table(tableName)
+        response = table.scan()
+        entries = []
+        for item in response['Items']:
+            if item[attriName] == attriVal:
+                if tableName == 'accounts':
+                    entries.append(ACCOUNTINFO(**item))
+                elif 'album' in tableName:
+                    entries.append(ALBUMINFO(**item))
+                elif 'image' in tableName: 
+                    entries.append(FILEINFO(**item))
+
+    def readAllEntries(self, tableName):
+        table = dynamodb.Table(tableName)
+        response = table.scan()
+        if tableName == 'accounts':
+            return [ACCOUNTINFO(**item) for item in response['Items']]
+        elif 'album' in tableName:
+            return [ALBUMINFO(**item) for item in response['Items']]
+        elif 'image' in tableName:
+            return [FILEINFO(**item) for item in response['Items']]
+
+
+    # tmp
     def readFileInfo(self, tableName, fileKey):
 
         table = dynamodb.Table(tableName)
@@ -133,75 +269,61 @@ class DB:
                 return FILEINFO(**item)
 
 
-    def readAllFileKeys(self):
-
-        # connection, cursor = self.connect(db='A2_RDBMS')
-
-        # # query
-        # tableName = "fileInfo"
-        # sql = """
-        # SELECT filekey
-        # FROM {}
-        # """.format(tableName)
-        # cursor.execute(sql)
-        # records = cursor.fetchall()
-
-        # # disconnect
-        # cursor.close()
-        # connection.close()
-
-        # # get and return all the keys from db 
-        # return [record[0] for record in records]
-        return
-    
-    def readAllFilePaths(self):
-
-        # connection, cursor = self.connect(db='A2_RDBMS')
-
-        # # query
-        # tableName = "fileInfo"
-        # sql = """
-        # SELECT location
-        # FROM {}
-        # """.format(tableName)
-        # cursor.execute(sql)
-        # records = cursor.fetchall()
-
-        # # disconnect
-        # cursor.close()
-        # connection.close()
-
-        # # get and return all the file paths from db 
-        # return [record[0] for record in records]
-        return
-
-    #######################################
-    ###########     Update    #############
-    ####################################### 
-    def updFileInfo(self, fileInfo):
-
-        # connection, cursor = self.connect(db='A2_RDBMS')
-        
-        # # Current table is cacheConfigs
-        # tableName = "fileInfo"
-        # sql = """
-        # UPDATE {}
-        # SET location = %s, size = %s
-        # WHERE fileKey = %s
-        # """.format(tableName)
-        # val = (fileInfo.location, fileInfo.size, fileInfo.key)
-        # cursor.execute(sql, val)
-
-        # # Commit the changes and disconnect
-        # connection.commit()
-        # cursor.close()
-        # connection.close()
-        return
-
-
     #######################################
     ###########     Delete    #############
     #######################################
+    def deleteEntry(self, tableName, pKey, sKey=None):
+
+        table   = dynamodb.Table(tableName)
+        tableType = 'accounts'
+        if 'image' in tableName:
+            tableType = 'image'
+        elif 'album' in tableName:
+            tableType = 'album'
+        pKeyName = self.TABLE_KEY_MP[tableType]['pKey']
+        sKeyName = self.TABLE_KEY_MP[tableType]['sKey']
+        try:
+            req = {pKeyName : pKey} if sKey==None else {pKeyName : pKey, sKeyName : sKey}
+            response = table.delete_item(
+                Key = req
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                print("Table does not exist")
+            elif e.response['Error']['Code'] == 'ValidationError':
+                print("Invalid parameter: " + e.response['Error']['Message'])
+            else:
+                print("Unexpected error: " + e.response['Error']['Message'])
+            return None
+        else:
+            if 'Item' not in response:
+                print("Item not found :(")
+                return None
+        
+        return True
+
+    def deleteEntries(self, tableName, attriName, attriVal):
+        table = dynamodb.Table(tableName)
+        tableType = 'accounts'
+        if 'image' in tableName:
+            tableType = 'image'
+        elif 'album' in tableName:
+            tableType = 'album'
+        pKeyName = self.TABLE_KEY_MP[tableType]['pKey']
+        sKeyName = self.TABLE_KEY_MP[tableType]['sKey']
+
+        response = table.scan()
+        for item in response['Items']:
+            if item[attriName] == attriVal:
+                if tableType == 'accounts':
+                    self.deleteEntry(tableName, item[pKeyName])
+                else:
+                    self.deleteEntry(tableName, item[pKeyName], item[sKeyName])
+
+    def deleteTable(self, tableName):
+        dynamodb_client.delete_table(TableName=tableName)
+
+    # tmp
     def delFileInfo(self, tableName, fileKey):
         
         table = dynamodb.Table(tableName)
@@ -222,8 +344,8 @@ class DB:
             if 'Item' not in response:
                 print("Item not found :(")
         return
-
-
+    
+    # tmp
     def delAllFileInfo(self, tableName):
 
         table = dynamodb.Table(tableName)
