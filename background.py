@@ -27,7 +27,6 @@ while True:
 	mem_util = mem_util.percent
 	disk_util = psutil.disk_usage('/')
 	disk_util = disk_util.percent
-	company_name = 'testAccount'
 	data['timestamp'] = time_stamp
 	data['Metrics'] = {}
 	data['Metrics']['CPU_Usage'] = cpu_util

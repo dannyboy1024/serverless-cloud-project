@@ -31,8 +31,7 @@ def lambda_handler(event, context):
                 'Disk_Usage'            : Disk_Usage
             }
         )
-        #print("CONTENT TYPE: " + response['ContentType'])
-        #return response['ContentType']
+
         response = {
             'statusCode': 200,
             'body': json.dumps("OK")
