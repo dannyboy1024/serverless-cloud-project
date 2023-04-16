@@ -20,9 +20,9 @@
             <br> <br><br>
             <el-col :span="6" v-for="(photo, index) in photoAlbums" :key="index">
                 <el-card class="photo-card">
-                    <el-image style="width: 100%; height: 250px; " :src="photo" :preview-src-list="photoAlbums" fit="contain">
+                    <el-image style="width: 100%; height: 250px; " :src="photo.url" :preview-src-list="photoList" fit="contain">
                     </el-image>
-                    <el-button class="button" icon="el-icon-delete" circle @click="deleteImage"></el-button>
+                    <el-button class="button" icon="el-icon-delete" circle @click="deleteImage(photo.name)"></el-button>
                 </el-card>
             </el-col>
         </el-row>
@@ -65,6 +65,7 @@ export default {
     data() {
         return {
             albumName: '',
+            photoList : [],
             photoAlbums: [],
             visible: {
                 addNewPhoto: false
@@ -93,18 +94,17 @@ export default {
                     console.log(response);
                     response.data.images.forEach((v)=>{
                         let content = eval('('+ v.content +')')
-                        this.photoAlbums.push(content.url)
+                        this.photoAlbums.push({
+                            'url': content.url,
+                            'name': content.name
+                        })
+                        this.photoList.push(content.url)
                     })
                     console.log(this.photoAlbums);
                 } else {
                     this.$message.error(response.data.message);
                 }
             });
-            // this.photoAlbums = [
-            //     'https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png',
-            //     'https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg',
-            //     'https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png'
-            // ]
         },
         addPhoto() {
             this.visible.addNewPhoto = true;
@@ -151,15 +151,16 @@ export default {
             this.uploadInfo.dialogImageUrl = photo;
             this.uploadInfo.dialogVisible = true;
         },
-        deleteImage() {
+        deleteImage(name) {
             this.$confirm('Are you sure to delete this photo?', 'Warning', {
                 confirmButtonText: 'OK',
                 cancelButtonText: 'Cancel',
                 type: 'warning'
             }).then(() => {
+                console.log('delete image', name);
                 axios.post('/api/delete_image', {
                     album: this.albumName,
-                    image: this.uploadInfo.dialogImageUrl
+                    image: name
                 }).then(res => {
                     console.log('delete request return info:', res);
                     if (res.status == 200) {
