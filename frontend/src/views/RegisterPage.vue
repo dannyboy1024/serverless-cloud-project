@@ -51,18 +51,17 @@ import axios from 'axios';
         methods: {
             register() {
                 this.$refs.registerForm.validate((valid) => {
-                    loading = true;
+                    this.loading = true;
                     if (valid) {
                         if (this.registerForm.password !== this.registerForm.confirmPassword) {
                             this.$message.error('passwords do not match');
-                            loading = false;
+                            this.loading = false;
                             return false;
                         }
                         console.log(this.registerForm);
                         let form = new FormData();
                         form.append('username',this.registerForm.username);
                         form.append('password',this.registerForm.password);
-                        loading = true;
                         axios.post(
                            '/api/register',form, {headers:{'Content-Type': 'multipart/form-data'}}
                         ).then((response) => {
@@ -75,7 +74,7 @@ import axios from 'axios';
                                 this.$router.push({ path: '/dashboard' , params : {username: this.registerForm.username}});
                             } else {
                                 this.$message.error(response.data.message);
-                                loading = false;
+                                this.loading = false;
                             }
                         })
                         .catch((error) => {
@@ -83,7 +82,7 @@ import axios from 'axios';
                             this.$message.error(error);
                         });
                     } 
-                        loading = false;
+                        this.loading = false;
                         return false;
                 });
             },
