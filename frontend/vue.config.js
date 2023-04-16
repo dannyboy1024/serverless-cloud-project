@@ -3,11 +3,13 @@ module.exports = defineConfig({
   transpileDependencies: true,
   devServer:{
     proxy:{
-      '/route':{
-        target: 'http://34.201.165.165:5000/',
+      '/api':{
+        // target: 'http://34.201.165.165:5000/',
+        // target: 'https://3bynfupmn3.execute-api.us-east-1.amazonaws.com/dev',
+        target: 'http://127.0.0.1:5000/',
         changeOrigin: true,
         pathRewrite: {
-          '^/route': ''
+          '^/api': ''
         }
       }
     }

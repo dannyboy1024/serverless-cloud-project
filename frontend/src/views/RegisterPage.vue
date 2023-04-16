@@ -51,13 +51,20 @@ import axios from 'axios';
             register() {
                 this.$refs.registerForm.validate((valid) => {
                     if (valid) {
-                        axios.post('/api/register', this.registerForm).then((response) => {
-                            if (response.data.code === 200) {
+                        console.log(this.registerForm);
+                        let form = new FormData();
+                        form.append('username',this.registerForm.username);
+                        form.append('password',this.registerForm.password)
+                        axios.post(
+                           '/api/register',form, {headers:{'Content-Type': 'multipart/form-data'}}
+                        ).then((response) => {
+                            console.log(response);
+                            if (response.status === 200) {
                                 this.$message({
                                     message: 'sucessfully registered',
                                     type: 'success'
                                 });
-                                this.$router.push({ path: '/dashboard' });
+                                this.$router.push({ path: '/dashboard' , params : {username: this.registerForm.username}});
                             } else {
                                 this.$message.error(response.data.message);
                             }

@@ -240,10 +240,10 @@ export default {
         }
     },
     created() {
-        this.timer_10 = window.setInterval(() => {
-            setTimeout(this.polling(), 0);
+        // this.timer_10 = window.setInterval(() => {
+        //     setTimeout(this.polling(), 0);
 
-        }, 10000)
+        // }, 10000)
     },
     destroyed() {
         window.clearInterval(this.timer_10);
@@ -405,33 +405,33 @@ export default {
                 this.retrieveInfo.showImage = false
             } else {
                 // let url = '/api/key/' + this.retrieveInfo.key
-                axios({
-                    method: 'POST',
-                    url: '/route/key/' + this.retrieveInfo.key
-                }).then(res => {
-                    console.log('retrieve image info: ', res.data);
-                    if (res.status == 200) {
-                        if (res.data["success"] == 'false') {
-                            this.$message.warning('File Not Found!')
+                let form = new FormData()
+                form.append('key', this.retrieveInfo.key);
+                axios.post('/route/retrieve', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+                    .then(res => {
+                        console.log('retrieve image info: ', res.data);
+                        if (res.status == 200) {
+                            if (res.data["success"] == 'false') {
+                                this.$message.warning('File Not Found!')
+                                this.retrieveInfo.imageUrl = ''
+                                this.retrieveInfo.showImage = false
+                            }
+                            else {
+                                let content = eval('(' + res.data.content + ')')
+                                this.retrieveInfo.imageUrl = content.url
+                                this.retrieveInfo.showImage = true
+                            }
+                        } else {
+                            this.$message.warning('Fail to retrieve!');
                             this.retrieveInfo.imageUrl = ''
                             this.retrieveInfo.showImage = false
+
                         }
-                        else {
-                            let content = eval('(' + res.data.content + ')')
-                            this.retrieveInfo.imageUrl = content.url
-                            this.retrieveInfo.showImage = true
-                        }
-                    } else {
-                        this.$message.warning('Fail to retrieve!');
+                    }).catch(error => {
+                        console.error(error);
                         this.retrieveInfo.imageUrl = ''
                         this.retrieveInfo.showImage = false
-
-                    }
-                }).catch(error => {
-                    console.error(error);
-                    this.retrieveInfo.imageUrl = ''
-                    this.retrieveInfo.showImage = false
-                })
+                    })
             }
         },
         // deleteKey(key, type) {

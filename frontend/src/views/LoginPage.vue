@@ -42,7 +42,7 @@
             login() {
                 this.$refs.loginForm.validate((valid) => {
                     if (valid) {
-                        this.$http.post('/api/login', this.loginForm).then((response) => {
+                        this.$http.post('/login', this.loginForm).then((response) => {
                             if (response.data.code === 200) {
                                 this.$message({
                                     message: 'sucessfully logged in',

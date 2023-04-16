@@ -126,8 +126,12 @@ export default {
                 this.$message.error('please input album name');
                 return;
             } else {
-                this.$http.post('/api/album', this.form).then((response) => {
-                    if (response.data.code === 200) {
+                let form = new FormData();
+                form.append('album',this.form.name);
+                axios.post(
+                    '/api/create_album',form, {headers:{'Content-Type': 'multipart/form-data'}}
+                ).then((response) => {
+                    if (response.status === 200) {
                         this.$message({
                             message: 'sucessfully add a new album',
                             type: 'success'
@@ -137,6 +141,17 @@ export default {
                         this.$message.error(response.data.message);
                     }
                 });
+                // this.$http.post('/api/album', this.form).then((response) => {
+                //     if (response.data.code === 200) {
+                //         this.$message({
+                //             message: 'sucessfully add a new album',
+                //             type: 'success'
+                //         });
+                //         this.visible.addNewDialog = false;
+                //     } else {
+                //         this.$message.error(response.data.message);
+                //     }
+                // });
             }
         },
         // openAlbum(album) {
