@@ -26,18 +26,18 @@
                         <el-button type="success" round @click="rewrite()">成功按钮</el-button>
                     </el-col>
                     <br><br><br>
-                    <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.name" :offset="index > 0 ? 0 : 2">
+                    <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName" :offset="index > 0 ? 0 : 2">
                         <el-card class="box-card" :body-style="{ padding: '0px' }">
-                            <el-image style="width: 100%; height: 250px" :src="album.cover" fit="contain"
-                                v-if="album.cover != ''"> </el-image>
-                            <el-image style="width: 100%; height: 250px" v-if="album.cover == ''"
+                            <el-image style="width: 100%; height: 250px" :src="album.coverImage" fit="contain"
+                                v-if="album.coverImage"> </el-image>
+                            <el-image style="width: 100%; height: 250px" v-else
                                 :src="require('../assets/fail.png')" fit="contain">
                             </el-image>
                             <div style="padding: 14px;">
-                                <span>{{ album.name }}</span>
+                                <span>{{ album.albumName }}</span>
                                 <div class="bottom clearfix">
                                     <router-link class="router" target="_blank"
-                                        :to="{ name: 'AlbumPhotos', query: { albumName: album.name } }">
+                                        :to="{ name: 'AlbumPhotos', query: { albumName: album.albumName } }">
                                         open
                                     </router-link>
                                 </div>
@@ -87,7 +87,8 @@ export default {
         initPhoteAbulm() {
             axios.get('/api/get_album_names').then((response) => {
                 if (response.status === 200) {
-                    this.photoAlbums = response.data.data;
+                    console.log(response);
+                    this.photoAlbums = response.data.covers;
                 } else {
                     this.$message.error(response.data.message);
                 }
@@ -217,7 +218,7 @@ export default {
         }
     },
     created() {
-        this.userName = this.$route.params.userName;
+        this.userName = this.$route.params.username;
     },
     mounted() {
         this.initPhoteAbulm();
