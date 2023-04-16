@@ -138,6 +138,7 @@ export default {
                             type: 'success'
                         });
                         this.visible.addNewDialog = false;
+                        this.initPhoteAbulm();
                     } else {
                         this.$message.error(response.data.message);
                     }

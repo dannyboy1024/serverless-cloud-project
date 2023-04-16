@@ -86,8 +86,8 @@ export default {
     },
     methods: {
         getAlbumPhotos() {
-            this.$http.get('/api/display_album/' + this.albumName).then((response) => {
-                if (response.data.code === 200) {
+            axios.get('/api/display_album/' + this.albumName).then((response) => {
+                if (response.status === 200) {
                     this.photoAlbums = response.data.images;
                 } else {
                     this.$message.error(response.data.message);
