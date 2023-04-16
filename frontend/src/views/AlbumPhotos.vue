@@ -10,13 +10,14 @@
                         photo</el-button>
                 </div>
             </el-col>
-            <br><br>
-           
+            <br><br><br>
+           <el-col :span="6" >
                 <div style="float: left">
-                    <el-input v-model="search"></el-input>
+                    <el-input v-model="search" style="width:200px"></el-input>
+                    &nbsp;&nbsp;&nbsp;&nbsp;
                     <el-button type="primary" slot="append" icon="el-icon-search" @click="search">search</el-button>
                 </div>
-           
+           </el-col>
             <br> <br><br>
             <el-col :span="6" v-for="(photo, index) in photoAlbums" :key="index">
                 <el-card class="photo-card">
