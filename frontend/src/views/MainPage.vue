@@ -13,7 +13,8 @@
                     <el-col>
                         <div style="float: left">
                             &nbsp;&nbsp;{{ this.textContent }}&nbsp;
-                            <el-switch v-model="auto" active-color="#13ce66" inactive-color="#ff4949" @change="autoChange()">
+                            <el-switch v-model="auto" active-color="#13ce66" inactive-color="#ff4949"
+                                @change="autoChange()">
                             </el-switch>
                         </div>
                         <div style="float: right">
@@ -21,17 +22,18 @@
                                 album</el-button>
                         </div>
                     </el-col>
-                    <el-col v-if="this.auto==true">
-                        Want to overwrite the old album? &nbsp; 
+                    <el-col v-if="this.auto == true">
+                        Want to overwrite the old album? &nbsp;
                         <el-button type="success" round @click="rewrite()">成功按钮</el-button>
                     </el-col>
                     <br><br><br>
-                    <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName" :offset="index > 0 ? 0 : 2">
+                    <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName"
+                        :offset="index > 0 ? 0 : 2">
                         <el-card class="box-card" :body-style="{ padding: '0px' }">
                             <el-image style="width: 100%; height: 250px" :src="album.coverImage" fit="contain"
                                 v-if="album.coverImage"> </el-image>
-                            <el-image style="width: 100%; height: 250px" v-else
-                                :src="require('../assets/fail.png')" fit="contain">
+                            <el-image style="width: 100%; height: 250px" v-else :src="require('../assets/fail.png')"
+                                fit="contain">
                             </el-image>
                             <div style="padding: 14px;">
                                 <span>{{ album.albumName }}</span>
@@ -79,8 +81,9 @@ export default {
                 name: ''
             },
             photoAlbums: [],
-            auto:false,
-            textContent: 'Need auto categorize?'
+            auto: false,
+            textContent: 'Need auto categorize?',
+            loading: false
         }
     },
     methods: {
@@ -128,9 +131,9 @@ export default {
                 return;
             } else {
                 let form = new FormData();
-                form.append('album',this.form.name);
+                form.append('album', this.form.name);
                 axios.post(
-                    '/api/create_album',form, {headers:{'Content-Type': 'multipart/form-data'}}
+                    '/api/create_album', form, { headers: { 'Content-Type': 'multipart/form-data' } }
                 ).then((response) => {
                     if (response.status === 200) {
                         this.$message({
@@ -177,42 +180,42 @@ export default {
                 }
             });
         },
-        autoChange(){
+        autoChange() {
             console.log(this.auto);
-            if(this.auto == false){
+            if (this.auto == false) {
                 this.initPhoteAbulm();
                 this.textContent = 'Need auto categorize?'
             }
-            if(this.auto == true){
+            if (this.auto == true) {
                 axios.put({
-                    url:'/api/sage_create_albums',
-                    data:{
-                        isAuto:this.auto
+                    url: '/api/sage_create_albums',
+                    data: {
+                        isAuto: this.auto
                     }
-                }).then((response)=>{
-                    if(response.status === 200){
+                }).then((response) => {
+                    if (response.status === 200) {
                         this.$message({
                             message: 'sucessfully auto categorize albums',
                             type: 'success'
                         });
                         this.photoAlbums = response.data.covers;
-                    }else{
+                    } else {
                         this.$message.error(response.data.message);
                     }
                 })
                 this.textContent = 'Need change back to original albums?'
             }
         },
-        rewrite(){
+        rewrite() {
             axios.put({
-                url:'/api/overwrite_manual_albums'
-            }).then((response)=>{
-                if(response.status === 200){
+                url: '/api/overwrite_manual_albums'
+            }).then((response) => {
+                if (response.status === 200) {
                     this.$message({
                         message: 'sucessfully rewrite albums',
                         type: 'success'
                     });
-                }else{
+                } else {
                     this.$message.error(response.data.message);
                 }
             })

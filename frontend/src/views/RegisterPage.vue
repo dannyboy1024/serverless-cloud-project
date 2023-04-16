@@ -51,9 +51,11 @@ import axios from 'axios';
         methods: {
             register() {
                 this.$refs.registerForm.validate((valid) => {
+                    loading = true;
                     if (valid) {
                         if (this.registerForm.password !== this.registerForm.confirmPassword) {
                             this.$message.error('passwords do not match');
+                            loading = false;
                             return false;
                         }
                         console.log(this.registerForm);
@@ -79,12 +81,10 @@ import axios from 'axios';
                         .catch((error) => {
                             console.log(error);
                             this.$message.error(error);
-                            loading = false;
-                        })
-                        ;
-                    } else {
+                        });
+                    } 
+                        loading = false;
                         return false;
-                    }
                 });
             },
             login() {
