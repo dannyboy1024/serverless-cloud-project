@@ -50,7 +50,7 @@
             register() {
                 this.$refs.registerForm.validate((valid) => {
                     if (valid) {
-                        this.$http.post('/api/register', this.registerForm).then((response) => {
+                        axios.post('/api/register', this.registerForm).then((response) => {
                             if (response.data.code === 200) {
                                 this.$message({
                                     message: 'sucessfully registered',
