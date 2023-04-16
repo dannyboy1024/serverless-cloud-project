@@ -7,13 +7,8 @@ import boto3
 from datetime import datetime
 
 # lambda client
-boto_session = boto3.Session(
-    aws_access_key_id = 'AKIAXHQE6ZG47G5N5PDN',
-    aws_secret_access_key = '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',
-    region_name='us-east-1'
-)
 
-lambda_client = boto_session.client('lambda')
+lambda_client = boto3.client('lambda')
 lambda_functions = lambda_client.list_functions()
 print(lambda_functions)
 
