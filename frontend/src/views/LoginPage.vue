@@ -59,7 +59,7 @@
                 });
             },
             register() {
-                this.$router.push({ path: '/dashboard' });
+                this.$router.push({ path: '/register' });
             }
         }
     }
