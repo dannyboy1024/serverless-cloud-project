@@ -60,10 +60,13 @@ class DB:
         self.TABLE_KEY_MP = {
             'accounts'           : {'pKey' : 'accoID',               'sKey' : None        },
             'album'              : {'pKey' : 'albumName',            'sKey' : 'albumType' },
-            'image'              : {'pKey' : 'fileName',             'sKey' : 'fileBucket'},
+            'image'              : {'pKey' : 'fileName',             'sKey' : None        },
             'performanceMetrics' : {'pKey' : 'performanceTimeStamp', 'sKey' : None        }
         }
 
+    #######################################
+    ###########    Create    ##############
+    ####################################### 
     def createTable(self, tableName, pKeyName, sKeyName=None):
         if sKeyName == None:
             # Simple
@@ -119,10 +122,6 @@ class DB:
         )
         table.meta.client.get_waiter('table_exists').wait(TableName=tableName)
         return
-
-    #######################################
-    ###########    Create    ##############
-    ####################################### 
 
     def insertEntry(self, tableName, entryInfo):
         table = dynamodb.Table(tableName)
@@ -267,6 +266,68 @@ class DB:
                 item = response['Item']
                 print(item)
                 return FILEINFO(**item)
+
+
+    #######################################
+    ###########    Update    ##############
+    #######################################
+    def updateTable(self, oldTableName, newTableName, pKeyName, sKeyName=None):
+        if sKeyName == None:
+            # Simple
+            keySchema = [
+                {
+                    'AttributeName': pKeyName,
+                    'KeyType': 'HASH'  # Partition key
+                }
+            ]
+            keyAttribute = [
+                {
+                    'AttributeName': pKeyName,
+                    'AttributeType': 'S'
+                }
+            ]
+        else:
+            # Composite
+            keySchema = [
+                {
+                    'AttributeName': pKeyName,
+                    'KeyType': 'HASH'  # Partition key
+                },
+                {
+                    'AttributeName': sKeyName,
+                    'KeyType': 'RANGE'  # Sort key
+                }
+            ]
+            keyAttribute = [
+                {
+                    'AttributeName': pKeyName,
+                    'AttributeType': 'S'
+                },
+                {
+                    'AttributeName': sKeyName,
+                    'AttributeType': 'S'
+                }
+            ]
+
+        table = dynamodb.update_table(
+            tableName = oldTableName,
+            KeySchema = keySchema[:],
+            AttributeDefinitions = keyAttribute[:],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            },
+            Tags=[
+                {
+                    'Key': 'TableName',
+                    'Value': newTableName
+                }
+            ],
+            tableName = newTableName
+        )
+        table.meta.client.get_waiter('table_exists').wait(TableName=newTableName)
+        return
+
 
 
     #######################################

@@ -210,6 +210,8 @@ def display_image():
     data = request.form
     albumName = str(data.get('album'))
     imageName = str(data.get('name'))
+    isAuto = session['isAuto']
+    mode = 'auto' if isAuto else 'manual'
 
     # Check if the image exists
     accoID = session['currentUser']
@@ -287,7 +289,7 @@ def delete_image():
     
 
 @webapp.route('/create_album', methods=['GET', 'POST'])
-def create_album():
+def create_manual_album():
     """
     Create an empty album
     Inputs:
@@ -526,25 +528,25 @@ def display_album():
     isAuto = session['isAuto']
     mode   = 'auto' if isAuto else 'manual'
 
-    # Get all the image objects from the s3 bucket
+    # Get all the image objects from their s3 buckets
     accoID = session['currentUser']
     imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
     imageInfoList = db.readAllEntries(imageTableName)
-    
-    imageObjs = s3client.list_objects_v2(Bucket=)
     fileValues = []
-    fileNames = []
-    for obj in imageObjs['Contents']:
-        objKey = obj['Key']
-        fileName = os.path.basename(objKey)
-        full_file_path = os.path.join(os_file_path, fileName)
-        s3client.download_file(imageTableName, objKey, full_file_path)
+    fileNames  = []
+    for imageInfo in imageInfoList:
+        fileName = imageInfo.fileName
+        bucketName = imageInfo.fileBucket
+        fileFormat = fileName.split('.')[1]
+        full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+        s3client.download_file(bucketName, fileName, full_file_path)
         value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
         fileValues.append(value)
         fileNames.append(fileName)
+
     resp = OrderedDict()
-    resp["images"]    = fileValues[:]
-    resp["fileNames"] = fileNames[:]
+    files = [{'content' : fileValues[i], 'name' : fileNames[i]} for i in range(len(fileNames))]
+    resp["images"] = files
     response = webapp.response_class(
         response=json.dumps(resp),
         status=200,
@@ -574,15 +576,13 @@ def sage_display_album():
     # Get required images
     accoID = session['currentUser']
     imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
-    imageObjs = s3client.list_objects_v2(Bucket=imageTableName)
+    imageInfoList = db.readAllEntries(imageTableName)
     fileValues = []
     fileNames  = []
-    for obj in imageObjs['Contents']:
-
-        # Create an image request
-        objKey = obj['Key']
-        fileName = os.path.basename(objKey)
-        req  = {'S3Object': {'Bucket': imageTableName, 'Name': fileName}}
+    for imageInfo in imageInfoList:
+        fileName = imageInfo.fileName
+        bucketName = imageInfo.fileBucket
+        req  = {'S3Object': {'Bucket': bucketName, 'Name': fileName}}
 
         # detect labels in the image and get required images
         resp = rekclient.detect_labels(Image=req)
@@ -591,7 +591,7 @@ def sage_display_album():
             if labelName in targetLabels:
                 fileFormat = fileName.split('.')[1]
                 full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-                s3client.download_file(imageTableName, objKey, full_file_path)
+                s3client.download_file(imageTableName, fileName, full_file_path)
                 value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
                 fileValues.append(value)
                 fileNames.append(fileName)
@@ -608,7 +608,8 @@ def sage_display_album():
     return response
 
 @webapp.route('/delete_album', methods=['GET', 'POST'])
-def delete_album():
+def delete_manual_album():
+    
     """
     Delete all images in an album
     Inputs:
@@ -639,6 +640,51 @@ def delete_album():
     
     resp = {
         "success" : True
+    }
+    response = webapp.response_class(
+        response=json.dumps(resp),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
+@webapp.route('/overwrite_manual_albums', methods=['GET', 'POST'])
+def overwrite_manual_albums():
+
+    """
+    Use automatically created albums 
+    Inputs:
+        - 
+    Outputs:
+        - Success / Fail [Boolean]
+    """
+    accoID = session['currentUser']
+    
+    # Delete all the existing manual album entries and their image tables 
+    albumTableName = accoID+'/albums'
+    albumInfoList = db.readEntries(albumTableName, attriName='albumType', attriVal='manual')
+    mode = 'manual'
+    for albumInfo in albumInfoList:
+        albumName = albumInfo.albumName
+        imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+        db.deleteTable(imageTableName)
+    db.deleteEntries(albumTableName, attriName='albumType', attriVal='manual')
+
+    # Change the types of all the albums to manual and update the names of all the image tables
+    albumInfoList = db.readAllEntries(albumTableName)
+    oldMode = 'auto'
+    newMode = 'manual'
+    for albumInfo in albumInfoList:
+        albumName = albumInfo.albumName
+        albumType = albumInfo.albumType
+        db.deleteEntry(albumTableName,albumName,albumType)
+        db.insertEntry(albumTableName,albumName,'manual')
+        oldImageTableName = accoID+'/'+albumName+'/'+oldMode+'/images'
+        newImageTableName = accoID+'/'+albumName+'/'+newMode+'/images'
+        db.updateTable(oldImageTableName, newImageTableName, 'fileName')
+    
+    resp =  {
+        'success' : True
     }
     response = webapp.response_class(
         response=json.dumps(resp),
