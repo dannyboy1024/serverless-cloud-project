@@ -2,7 +2,7 @@
     <div>
         <el-row>
             <h3 style="position: absolute;top:-50px; left:10px">
-                Hi, {{ this.username }}
+                Hi, {{ this.userName }}
             </h3>
             <el-button style="position: absolute;top:-30px; right:10px" @click="logout">logout</el-button>
         </el-row>

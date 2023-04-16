@@ -21,6 +21,7 @@
 </template>
 
 <script>
+import axios from 'axios';
     export default {
         data() {
             return {
@@ -42,7 +43,7 @@
             login() {
                 this.$refs.loginForm.validate((valid) => {
                     if (valid) {
-                        this.$http.post('/login', this.loginForm).then((response) => {
+                        axios.post('/login', this.loginForm).then((response) => {
                             if (response.status === 200) {
                                 this.$message({
                                     message: 'sucessfully logged in',
