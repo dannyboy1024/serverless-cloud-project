@@ -14,7 +14,7 @@ Overview:
         - Display charts
 
 # Backend routes for Frontend
-1.  /upload_image
+1.  /upload_image ✅
     req = {
         'album' : # Album name [String]
         'image' : # Image content [Same as A2]
@@ -24,7 +24,7 @@ Overview:
         'album'   : # Album name [String]
     }
 
-2.  /display_image
+2.  /display_image （no need）
     req = {
         'album' : # Album name [String]
         'name'  : # Image name [String]
@@ -34,7 +34,7 @@ Overview:
         'image'   : # Image content 
     }
 
-3.  /delete_image
+3.  /delete_image  ✅
     req = {
         'album' : # Album name [String]
         'name'  : # Image name [String]        
@@ -43,7 +43,7 @@ Overview:
         'success' : # success / fail [Boolean]       
     }
 
-4.  /create_album
+4.  /create_album  ✅
     req = {
         'album' : # Album name [String]
     }
@@ -51,7 +51,7 @@ Overview:
         'success' : # success / fail [Boolean]
     }
 
-5.  /sage_create_albums
+5.  /sage_create_albums  ✅
     req = {
         'isAuto' : # Is in Automatic mode ? [Boolean]
     }
@@ -65,7 +65,7 @@ Overview:
         ] [List]
     }
 
-6.  /get_album_names
+6.  /get_album_names  ✅
     req = {
         # None
     }
@@ -79,7 +79,7 @@ Overview:
         ] [List]
     }
 
-7.  /display_album
+7.  /display_album  ✅
     req = {
         'album' : # Album name [String]
     }
@@ -87,7 +87,7 @@ Overview:
         'images' : Image content and Image Name [{content, name}]
     }
 
-8.  /sage_display_album
+8.  /sage_display_album  
     req = {
         'album'  : # Album name [String]
         'labels' : # List of lables [List] 
@@ -95,16 +95,16 @@ Overview:
     resp = {
         'images' : # Only the images in the album with the given labels [List]
     }
-
-9. /delete_album
+ 
+9. /delete_album  ✅
     req = {
         'album'  : # Album name [String]
     }
     resp = {
         'success' : # success / fail [Boolean]
     }
-
-10. /register
+ 
+10. /register  ✅
     req = {
         'id'       : # Account name [String]
         'password' : # Password     [String]
@@ -113,7 +113,7 @@ Overview:
         'success' : # success / fail [Boolean]
     }
 
-11. /login
+11. /login  ✅
     req = {
         'id'       : # Account name [String]
         'password' : # Password     [String]
@@ -122,7 +122,7 @@ Overview:
         'success' : # success / fail [Boolean]
     }
 
-12. /logout
+12. /logout  ✅
     req = {
         'id'       : # Account name [String]
         'password' : # Password     [String]
@@ -131,7 +131,7 @@ Overview:
         'success' : # success / fail [Boolean]
     }
 
-13. /overwrite_manual_albums
+13. /overwrite_manual_albums ✅
     req = {
         # None
     }
