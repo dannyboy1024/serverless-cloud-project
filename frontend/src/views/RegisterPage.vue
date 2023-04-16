@@ -3,7 +3,7 @@
         <div slot="header" class="clearfix">
             <span>register</span>
         </div>
-        <el-form :model="registerForm" :rules="rules" ref="registerForm" label-width="auto" >
+        <el-form :model="registerForm" :rules="rules" ref="registerForm" label-width="auto" v-loading="loading">
             <el-form-item label="username" prop="username" >
                 <el-input v-model="registerForm.username" ></el-input>
             </el-form-item>
@@ -44,7 +44,8 @@ import axios from 'axios';
                     confirmPassword: [
                         { required: true, message: 'please input password again', trigger: 'blur' }
                     ]
-                }
+                },
+                loading: false
             }
         },
         methods: {
@@ -58,7 +59,8 @@ import axios from 'axios';
                         console.log(this.registerForm);
                         let form = new FormData();
                         form.append('username',this.registerForm.username);
-                        form.append('password',this.registerForm.password)
+                        form.append('password',this.registerForm.password);
+                        loading = true;
                         axios.post(
                            '/api/register',form, {headers:{'Content-Type': 'multipart/form-data'}}
                         ).then((response) => {
@@ -71,8 +73,15 @@ import axios from 'axios';
                                 this.$router.push({ path: '/dashboard' , params : {username: this.registerForm.username}});
                             } else {
                                 this.$message.error(response.data.message);
+                                loading = false;
                             }
-                        });
+                        })
+                        .catch((error) => {
+                            console.log(error);
+                            this.$message.error(error);
+                            loading = false;
+                        })
+                        ;
                     } else {
                         return false;
                     }
