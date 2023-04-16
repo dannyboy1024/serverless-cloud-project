@@ -231,6 +231,9 @@ class DB:
                     entries.append(FILEINFO(**item))
 
     def readAllEntries(self, tableName):
+        currentTables = dynamodb_client.list_tables()['TableNames']
+        if tableName not in currentTables:
+            return []
         table = dynamodb.Table(tableName)
         response = table.scan()
         if tableName == 'accounts':
@@ -268,71 +271,11 @@ class DB:
                 return FILEINFO(**item)
 
 
-    #######################################
-    ###########    Update    ##############
-    #######################################
-    def updateTable(self, oldTableName, newTableName, pKeyName, sKeyName=None):
-        if sKeyName == None:
-            # Simple
-            keySchema = [
-                {
-                    'AttributeName': pKeyName,
-                    'KeyType': 'HASH'  # Partition key
-                }
-            ]
-            keyAttribute = [
-                {
-                    'AttributeName': pKeyName,
-                    'AttributeType': 'S'
-                }
-            ]
-        else:
-            # Composite
-            keySchema = [
-                {
-                    'AttributeName': pKeyName,
-                    'KeyType': 'HASH'  # Partition key
-                },
-                {
-                    'AttributeName': sKeyName,
-                    'KeyType': 'RANGE'  # Sort key
-                }
-            ]
-            keyAttribute = [
-                {
-                    'AttributeName': pKeyName,
-                    'AttributeType': 'S'
-                },
-                {
-                    'AttributeName': sKeyName,
-                    'AttributeType': 'S'
-                }
-            ]
-
-        table = dynamodb.update_table(
-            TableName = oldTableName,
-            KeySchema = keySchema[:],
-            AttributeDefinitions = keyAttribute[:],
-            ProvisionedThroughput={
-                'ReadCapacityUnits': 5,
-                'WriteCapacityUnits': 5
-            },
-            Tags=[
-                {
-                    'Key': 'TableName',
-                    'Value': newTableName
-                }
-            ],
-            TableName = newTableName
-        )
-        table.meta.client.get_waiter('table_exists').wait(TableName=newTableName)
-        return
-
-
 
     #######################################
     ###########     Delete    #############
     #######################################
+
     def deleteEntry(self, tableName, pKey, sKey=None):
 
         table   = dynamodb.Table(tableName)
@@ -356,10 +299,6 @@ class DB:
             else:
                 print("Unexpected error: " + e.response['Error']['Message'])
             return None
-        else:
-            if 'Item' not in response:
-                print("Item not found :(")
-                return None
         
         return True
 
@@ -424,6 +363,7 @@ class DB:
 
 
 webapp = Flask(__name__)
+webapp.secret_key = 'your_secret_key_here'
 CORS(webapp)
 db = DB()
 from app import main

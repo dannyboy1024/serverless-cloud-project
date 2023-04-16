@@ -32,6 +32,24 @@ def main():
 #################
 # Helper routes #
 #################
+@webapp.route('/helper/writeFile', methods=['GET', 'POST'])
+def writeFile():
+    value = request.args.get('value')
+    full_file_path = request.args.get('path')
+    if os.path.isfile(full_file_path):
+        os.remove(full_file_path)
+    with open(full_file_path, 'w') as fp:
+        fp.write(value)
+    resp = {
+        "success" : "true"
+    }
+    response = webapp.response_class(
+        response=json.dumps(resp),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
 @webapp.route('/helper/uploadToDBandS3', methods=['GET', 'POST'])
 def uploadToDBandS3():
     """
@@ -164,16 +182,18 @@ def upload_image():
     imageSize     = str(eval(imageContent).get('size'))
     imageLocation = os.path.join(os_file_path, imageName)
     value         = base64.b64encode(str(imageContent).encode())
-    if os.path.isfile(imageLocation):
-        os.remove(imageLocation)
-    with open(imageLocation, 'w') as fp:
-        fp.write(value)
+    # if os.path.isfile(imageLocation):
+    #     os.remove(imageLocation)
+    # with open(imageLocation, 'w') as fp:
+    #     fp.write(value)
+    requestJson = {'value': value, 'path': imageLocation}
+    requests.post(webapp_url + '/helper/writeFile', params=requestJson)
     isAuto = session['isAuto']
     mode   = 'auto' if isAuto else 'manual'
     
     # Lookup the image. Delete it if it exists.
     accoID = session['currentUser']
-    imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     imageBucketName = imageTableName
     imageInfo = db.readEntry(imageTableName, imageName)
     if imageInfo != None:
@@ -215,7 +235,7 @@ def display_image():
 
     # Check if the image exists
     accoID = session['currentUser']
-    imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     imageInfo = db.readEntry(imageTableName, imageName)
     bucketName = imageInfo.fileBucket
 
@@ -255,10 +275,10 @@ def delete_image():
 
     # Delete the image entry from the image table
     accoID = session['currentUser']
-    imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     imageInfo = db.readEntry(imageTableName, imageName)
     bucketName = imageInfo.fileBucket
-    if (isAuto):
+    if isAuto:
         res = db.deleteEntry(bucketName, imageName)
     res = db.deleteEntry(imageTableName, imageName)
     if res == None:
@@ -305,7 +325,7 @@ def create_manual_album():
 
     # Lookup the album table of the user
     accoID = session['currentUser']
-    albumTableName = accoID+'/albums'
+    albumTableName = accoID+'-albums'
     album = db.readEntry(albumTableName, albumName, mode)
     if album != None:
         # Album already exists
@@ -324,7 +344,7 @@ def create_manual_album():
     db.insertEntry(albumTableName, ALBUMINFO(albumName, 'manual'))
 
     # Create a new table of images
-    imageTableName = accoID+'/'+album.albumName+'/'+mode+'/images'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     pKeyName = 'fileName'
     db.createTable(imageTableName, pKeyName)
 
@@ -372,11 +392,11 @@ def sage_create_albums():
     if isAuto:
 
         # Delete all the existing auto album entries and their image tables 
-        albumTableName = accoID+'/albums'
+        albumTableName = accoID+'-albums'
         albumInfoList = db.readEntries(albumTableName, attriName='albumType', attriVal='auto')
         for albumInfo in albumInfoList:
             albumName = albumInfo.albumName
-            imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+            imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             db.deleteTable(imageTableName)
         db.deleteEntries(albumTableName, attriName='albumType', attriVal='auto')
 
@@ -385,7 +405,7 @@ def sage_create_albums():
         albumInfoList = db.readAllEntries(albumTableName)
         for albumInfo in albumInfoList:
             albumName = albumInfo.albumName
-            imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+            imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             imageInfoList = db.readAllEntries(imageTableName)
             for imageInfo in imageInfoList:
                 req = {'S3Object': {'Bucket': imageTableName, 'Name': imageInfo.fileName}}
@@ -419,7 +439,7 @@ def sage_create_albums():
         # Insert new auto album entries and create new image tables
         for albumName, imageIdxList in albumMp.items():
             db.insertEntry(albumTableName, ALBUMINFO(albumName, 'auto'))
-            autoImageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+            autoImageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             pKeyName = 'fileName'
             db.createTable(autoImageTableName, pKeyName)
             for idx in imageIdxList:
@@ -431,34 +451,42 @@ def sage_create_albums():
 
         # Return the automatically created album names and their covers
         for albumName, _ in albumMp.items():
-            autoImageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+            autoImageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             firstReq = allImageReqs[0]
             fileName = firstReq['S3Object']['Name']
             fileBucketName = firstReq['S3Object']['Bucket']
-            bucket = s3client.Bucket(fileBucketName)
-            firstItem = next(iter(bucket.objects.all()), None)
-            fileFormat = fileName.split('.')[1]
-            full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-            s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
-            coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-            covers.append({"albumName" : albumName, "coverImage" : coverImage})
+            # bucket = s3client.Bucket(fileBucketName)
+            # firstItem = next(iter(bucket.objects.all()), None)
+            resp = s3client.list_objects_v2(Bucket=fileBucketName)
+            if 'Contents' in resp:
+                firstItem = resp['Contents'][0]
+                fileFormat = fileName.split('.')[1]
+                full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                s3client.download_file(fileBucketName, firstItem['Key'], full_file_path)
+                coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                covers.append({"albumName" : albumName, "coverImage" : coverImage})
+            else:
+                covers.append({"albumName" : albumName, "coverImage" : None}) 
 
     # Exiting the auto mode
     else:
 
         # Get manually created album covers
-        albumTableName = accoID+'/albums'
+        albumTableName = accoID+'-albums'
         albumInfoList = db.readEntries(albumTableName, attriName='albumType', attriVal='manual')
         for albumInfo in albumInfoList:
             albumName      = albumInfo.albumName
-            imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
-            bucket = s3client.Bucket(imageTableName)
-            firstItem = next(iter(bucket.objects.all()), None)
-            fileFormat = fileName.split('.')[1]
-            full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-            s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
-            coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-            covers.append({"albumName" : albumName, "coverImage" : coverImage})        
+            imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
+            resp = s3client.list_objects_v2(Bucket=imageTableName)
+            if 'Contents' in resp:
+                firstItem = resp['Contents'][0]
+                fileFormat = fileName.split('.')[1]
+                full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
+                coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                covers.append({"albumName" : albumName, "coverImage" : coverImage})
+            else:
+                covers.append({"albumName" : albumName, "coverImage" : None}) 
 
     resp = {
         "success" : True,
@@ -485,22 +513,22 @@ def get_album_names():
     isAuto = session['isAuto']
     mode   = 'auto' if isAuto else 'manual'
     accoID = session['currentUser']
-    albumTableName = accoID+'/albums'
+    albumTableName = accoID+'-albums'
     albumInfoList = db.readAllEntries(albumTableName)
     covers = []
     for albumInfo in albumInfoList:
         albumName = albumInfo.albumName
-        imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
-        bucket = s3client.Bucket(imageTableName)
-        firstItem = next(iter(bucket.objects.all()), None)
+        imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
         coverImage = None
-        if firstItem != None:
+        resp = s3client.list_objects_v2(Bucket=imageTableName)
+        if 'Contents' in resp:
+            firstItem = resp['Contents'][0]
             fileName = os.path.basename(firstItem['Key'])
             fileFormat = fileName.split('.')[1]
             full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
             s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
             coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-            covers.append({"albumName" : albumName, "coverImage" : coverImage})
+        covers.append({"albumName" : albumName, "coverImage" : coverImage})
     resp = {
         "success" : True,
         "covers"  : covers
@@ -530,7 +558,7 @@ def display_album():
 
     # Get all the image objects from their s3 buckets
     accoID = session['currentUser']
-    imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     imageInfoList = db.readAllEntries(imageTableName)
     fileValues = []
     fileNames  = []
@@ -575,7 +603,7 @@ def sage_display_album():
 
     # Get required images
     accoID = session['currentUser']
-    imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     imageInfoList = db.readAllEntries(imageTableName)
     fileValues = []
     fileNames  = []
@@ -626,8 +654,8 @@ def delete_manual_album():
 
     # Delete the image table and the album entry in the album table
     accoID = session['currentUser']
-    albumTableName = accoID+'/albums'
-    imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+    albumTableName = accoID+'-albums'
+    imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     db.deleteEntry(albumTableName, albumName)
     db.deleteTable(imageTableName)
 
@@ -661,12 +689,12 @@ def overwrite_manual_albums():
     accoID = session['currentUser']
     
     # Delete all the existing manual album entries and their image tables 
-    albumTableName = accoID+'/albums'
+    albumTableName = accoID+'-albums'
     albumInfoList = db.readEntries(albumTableName, attriName='albumType', attriVal='manual')
     mode = 'manual'
     for albumInfo in albumInfoList:
         albumName = albumInfo.albumName
-        imageTableName = accoID+'/'+albumName+'/'+mode+'/images'
+        imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
         db.deleteTable(imageTableName)
     db.deleteEntries(albumTableName, attriName='albumType', attriVal='manual')
 
@@ -679,9 +707,10 @@ def overwrite_manual_albums():
         albumType = albumInfo.albumType
         db.deleteEntry(albumTableName,albumName,albumType)
         db.insertEntry(albumTableName,albumName,'manual')
-        oldImageTableName = accoID+'/'+albumName+'/'+oldMode+'/images'
-        newImageTableName = accoID+'/'+albumName+'/'+newMode+'/images'
-        db.updateTable(oldImageTableName, newImageTableName, 'fileName')
+        oldImageTableName = accoID+'-'+albumName+'-'+oldMode+'-images'
+        newImageTableName = accoID+'-'+albumName+'-'+newMode+'-images'
+        db.deleteTable(oldImageTableName)
+        db.createTable(newImageTableName, 'fileName')
     
     resp =  {
         'success' : True
@@ -707,8 +736,9 @@ def create_account():
 
     # Get account name and password
     data = request.form
-    accoID = str(data.get('id'))
+    accoID = str(data.get('username'))
     passwd = str(data.get('password'))
+    session['isAuto'] = False
 
     # Lookup the account from DB
     acco = db.readEntry('accounts', pKey=accoID)
@@ -725,14 +755,15 @@ def create_account():
         )
         return response
     
-    # Insert the account to DB and login the new user if no current user
+    # Insert the account to DB, create a new album table, and login the new user if no current user
     db.insertEntry('accounts', ACCOUNTINFO(accoID, passwd))
+    albumTableName = accoID+'-albums'
+    db.createTable(albumTableName, 'albumName', 'albumType')
     message = 'New account created :)'
-    if session['loggedIn'] == False: # shoudl be always False
-        session["currentUser"] = accoID
-        session['loggedIn'] = True
-        message += ' Automatically logged in :)'
-
+    session["currentUser"] = accoID
+    session['loggedIn'] = True
+    message += ' Automatically logged in :)'
+    
     resp = {
         "success" : True,
         "message" : message

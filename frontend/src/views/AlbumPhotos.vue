@@ -157,11 +157,11 @@ export default {
                 cancelButtonText: 'Cancel',
                 type: 'warning'
             }).then(() => {
+                let form = new FormData()
+                form.append('album', this.albumName)
+                form.append('name',name)
                 console.log('delete image', name);
-                axios.post('/api/delete_image', {
-                    album: this.albumName,
-                    image: name
-                }).then(res => {
+                axios.post('/api/delete_image',form).then(res => {
                     console.log('delete request return info:', res);
                     if (res.status == 200) {
                         this.$message({

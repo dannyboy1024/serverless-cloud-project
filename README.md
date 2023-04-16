@@ -106,7 +106,7 @@ Overview:
  
 10. /register  ✅
     req = {
-        'id'       : # Account name [String]
+        'username' : # Account name [String]
         'password' : # Password     [String]
     }
     resp = {
