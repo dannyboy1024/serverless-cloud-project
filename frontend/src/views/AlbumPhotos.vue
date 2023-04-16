@@ -11,12 +11,12 @@
                 </div>
             </el-col>
             <br><br>
-            <el-col>
+           
                 <div style="float: left">
                     <el-input v-model="search"></el-input>
                     <el-button type="primary" slot="append" icon="el-icon-search" @click="search">search</el-button>
                 </div>
-            </el-col>
+           
             <br> <br><br>
             <el-col :span="6" v-for="(photo, index) in photoAlbums" :key="index">
                 <el-card class="photo-card">
@@ -86,9 +86,16 @@ export default {
     },
     methods: {
         getAlbumPhotos() {
-            axios.get('/api/display_album/' + this.albumName).then((response) => {
+            let form = new FormData();
+            form.append('album',this.albumName)
+            axios.post('/api/display_album' , form).then((response) => {
                 if (response.status === 200) {
-                    this.photoAlbums = response.data.images;
+                    console.log(response);
+                    response.data.images.forEach((v)=>{
+                        let content = eval('('+ v.content +')')
+                        this.photoAlbums.push(content.url)
+                    })
+                    console.log(this.photoAlbums);
                 } else {
                     this.$message.error(response.data.message);
                 }
