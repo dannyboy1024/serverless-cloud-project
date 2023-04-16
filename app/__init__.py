@@ -310,7 +310,7 @@ class DB:
             ]
 
         table = dynamodb.update_table(
-            tableName = oldTableName,
+            TableName = oldTableName,
             KeySchema = keySchema[:],
             AttributeDefinitions = keyAttribute[:],
             ProvisionedThroughput={
@@ -323,7 +323,7 @@ class DB:
                     'Value': newTableName
                 }
             ],
-            tableName = newTableName
+            TableName = newTableName
         )
         table.meta.client.get_waiter('table_exists').wait(TableName=newTableName)
         return

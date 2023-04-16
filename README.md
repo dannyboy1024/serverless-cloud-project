@@ -9,6 +9,7 @@ Overview:
         - Showing a list of albums on the left of the screen maybe
         - Choose an album and display one or all images
         - Choose an album and display images according to image items
+        - Search for pictures using key words (e.g. cars, cats)
     - Admin interface (Using backend url)
         - Display charts
 
