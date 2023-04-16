@@ -86,7 +86,7 @@ export default {
     methods: {
         initPhoteAbulm() {
             axios.get('/api/get_album_names').then((response) => {
-                if (response.data.code === 200) {
+                if (response.status === 200) {
                     this.photoAlbums = response.data.data;
                 } else {
                     this.$message.error(response.data.message);
@@ -142,7 +142,7 @@ export default {
                     }
                 });
                 // this.$http.post('/api/album', this.form).then((response) => {
-                //     if (response.data.code === 200) {
+                //     if (response.status === 200) {
                 //         this.$message({
                 //             message: 'sucessfully add a new album',
                 //             type: 'success'
@@ -163,8 +163,8 @@ export default {
             this.form.name = ''
         },
         logout() {
-            this.$http.post('/api/logout').then((response) => {
-                if (response.data.code === 200) {
+            axios.post('/api/logout').then((response) => {
+                if (response.status === 200) {
                     this.$message({
                         message: 'sucessfully logout',
                         type: 'success'
@@ -188,7 +188,7 @@ export default {
                         isAuto:this.auto
                     }
                 }).then((response)=>{
-                    if(response.data.code === 200){
+                    if(response.status === 200){
                         this.$message({
                             message: 'sucessfully auto categorize albums',
                             type: 'success'
@@ -205,7 +205,7 @@ export default {
             axios.put({
                 url:'/api/overwrite_manual_albums'
             }).then((response)=>{
-                if(response.data.code === 200){
+                if(response.status === 200){
                     this.$message({
                         message: 'sucessfully rewrite albums',
                         type: 'success'

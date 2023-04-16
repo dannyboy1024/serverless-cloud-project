@@ -51,6 +51,10 @@ import axios from 'axios';
             register() {
                 this.$refs.registerForm.validate((valid) => {
                     if (valid) {
+                        if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                            this.$message.error('passwords do not match');
+                            return false;
+                        }
                         console.log(this.registerForm);
                         let form = new FormData();
                         form.append('username',this.registerForm.username);

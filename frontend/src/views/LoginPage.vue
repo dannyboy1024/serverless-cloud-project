@@ -43,7 +43,7 @@
                 this.$refs.loginForm.validate((valid) => {
                     if (valid) {
                         this.$http.post('/login', this.loginForm).then((response) => {
-                            if (response.data.code === 200) {
+                            if (response.status === 200) {
                                 this.$message({
                                     message: 'sucessfully logged in',
                                     type: 'success'
