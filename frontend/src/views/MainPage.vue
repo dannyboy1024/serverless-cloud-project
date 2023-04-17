@@ -202,14 +202,13 @@ export default {
             }
         },
         rewrite() {
-            axios.post({
-                url: '/api/overwrite_manual_albums'
-            }).then((response) => {
+            axios.get('/api/overwrite_manual_albums').then((response) => {
                 if (response.status === 200) {
                     this.$message({
                         message: 'sucessfully rewrite albums',
                         type: 'success'
                     });
+                   this.initPhoteAbulm();
                 } else {
                     this.$message.error(response.data.message);
                 }

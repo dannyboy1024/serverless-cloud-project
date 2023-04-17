@@ -12,20 +12,14 @@ import requests
 # import plotly.graph_objs as go
 # import pytz
 from datetime import datetime, timedelta
+import logging
 
 # AWS Setup
 # webapp_url = 'https://3bynfupmn3.execute-api.us-east-1.amazonaws.com/dev'
 # webapp_url = 'http://192.168.2.14:5051'
 webapp_url = 'http://127.0.0.1:5000'
-# os_file_path = '/tmpDir'
+# os_file_path = '/tmp'
 os_file_path = os.getcwd()
-bucket_name = 'ece1779-a3-files'
-# def provision_aws():
-#     global s3client, rekclient
-#     s3client  = boto3.client('s3', region_name='us-east-1')
-#     rekclient = boto3.client('rekognition', region_name='us-east-1')
-#     print("Provision done")
-# provision_aws()
 
 
 @webapp.route('/')
@@ -39,10 +33,14 @@ def main():
 def writeFile():
     value = request.args.get('value')
     full_file_path = request.args.get('path')
+    if not os.path.exists(os.path.dirname(full_file_path)):
+        os.makedirs(os.path.dirname(full_file_path))
     if os.path.isfile(full_file_path):
         os.remove(full_file_path)
     with open(full_file_path, 'w') as fp:
         fp.write(value)
+    # print('full path = ' + full_file_path)
+    # raise ZeroDivisionError(' ------------------- current directory is = ' + os.getcwd())
     resp = {
         "success" : "true"
     }
@@ -52,113 +50,6 @@ def writeFile():
         mimetype='application/json'
     )
     return response
-
-@webapp.route('/helper/uploadToDBandS3', methods=['GET', 'POST'])
-def uploadToDBandS3():
-    """
-    Upload the key to the database
-    Store the value as a file in the local file system, key as filename
-    key: string
-    value: string (For images, base64 encoded string)
-    """
-    key = request.args.get('key')
-    value = request.args.get('value')
-    size = request.args.get('size')
-    filename  = request.args.get('name')
-
-    full_file_path = os.path.join(os_file_path, filename)
-    if os.path.isfile(full_file_path):
-        os.remove(full_file_path)
-    with open(full_file_path, 'w') as fp:
-        fp.write(value)
-        s3client.upload_file(full_file_path, bucket_name, filename)
-    db.insertFileInfo(tableName='fileInfo', fileInfo=FILEINFO(key, full_file_path, size))
-
-    resp = {
-        "success" : "true"
-    }
-    response = webapp.response_class(
-        response=json.dumps(resp),
-        status=200,
-        mimetype='application/json'
-    )
-    return response
-
-@webapp.route('/helper/getFromS3', methods=['GET', 'POST'])
-def getFromS3():
-    """
-    Fetch the value (file, or image) from the file system given a key
-    key: string
-    """
-    key = str(request.args.get('key'))
-    fileInfo = db.readFileInfo(tableName='fileInfo', fileKey=key)
-    if fileInfo != None: 
-        filename = fileInfo.fileLocation.split('/')[-1]
-        fileSize = fileInfo.fileSize
-        checkFile = s3client.list_objects_v2(Bucket=bucket_name, Prefix=filename)
-        if "Contents" in checkFile:
-            full_file_path = os.path.join(os_file_path, filename)
-            s3client.download_file(bucket_name, filename, full_file_path)
-            value = Path(full_file_path).read_text()
-            resp = {
-                "success" : "true", 
-                "value": value, 
-                "size": fileSize
-            }
-            response = webapp.response_class(
-                response=json.dumps(resp),
-                status=200,
-                mimetype='application/json'
-            )
-        else:
-            response = webapp.response_class(
-                response=json.dumps("File Not Found"),
-                status=400,
-                mimetype='application/json'
-            )
-    else:
-        print("Not found in DB")
-        response = webapp.response_class(
-            response=json.dumps("Not found in DB"),
-            status=400,
-            mimetype='application/json'
-        )
-
-    return response
-
-
-#################
-# Tmp routes    #
-#################
-@webapp.route('/retrieve', methods=['GET', 'POST'])
-def retrieve():
-
-    # get, upload image with key
-    # retrieve image
-    data = request.form
-    key = str(data.get('key'))
-    # requestJson = {
-    #     'key': key
-    # }
-    # res = requests.post(webapp_url+'/helper/getFromS3', params=requestJson)
-    fileInfo = db.readFileInfo(tableName='fileInfo', fileKey=key)
-    if fileInfo != None: 
-        # filename = fileInfo.fileLocation.split('/')[-1]
-        filename = fileInfo.fileLocation.split('\\')[-1]
-        checkFile = s3client.list_objects_v2(Bucket=bucket_name, Prefix=filename)
-        full_file_path = os.path.join(os_file_path, filename)
-        s3client.download_file(bucket_name, filename, full_file_path)
-        value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-        resp = OrderedDict()
-        resp["success"] = "true"
-        resp["key"] = key
-        resp["content"] = value
-        response = webapp.response_class(
-            response=json.dumps(resp),
-            status=200,
-            mimetype='application/json'
-        )
-        return response
 
 
 #################
@@ -184,7 +75,7 @@ def upload_image():
     imageName     = 'url_'+str(eval(imageContent).get('name'))
     imageSize     = str(eval(imageContent).get('size'))
     imageFormat   = imageName.split('.')[1]
-    imageLocation = os.path.join(os_file_path, 'tmp.'+imageFormat)
+    imageLocation = os.path.join(os_file_path, 'tmpFile.'+imageFormat)
     value = base64.b64encode(str(imageContent).encode())
     requestJson = {'value': value, 'path': imageLocation}
     requests.post(webapp_url + '/helper/writeFile', params=requestJson)
@@ -388,10 +279,12 @@ def sage_create_albums():
 
     # Get the mode we are entering
     data = request.form
-    isAuto = str(data.get('isAuto'))
+    isAuto = data.get('isAuto')
+    print(isAuto)
     accoID = session['currentUser']
     session['isAuto'] = isAuto
     mode = 'auto' if isAuto else 'manual'
+    print(mode)
     covers = []
 
     # Entering the auto mode
@@ -406,22 +299,26 @@ def sage_create_albums():
         # Delete all the existing auto album entries and their image tables 
         albumTableName = accoID+'-albums'
         albumInfoList = db.readEntries(albumTableName, attriName='albumType', attriVal='auto')
+        print('All auto albums to be deleted', [albumInfo.albumName for albumInfo in albumInfoList])
         for albumInfo in albumInfoList:
             albumName = albumInfo.albumName
             imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             db.deleteTable(imageTableName)
         db.deleteEntries(albumTableName, attriName='albumType', attriVal='auto')
 
+
         # List all images from all file buckets
         allImageReqs = []
         albumInfoList = db.readAllEntries(albumTableName)
         for albumInfo in albumInfoList:
             albumName = albumInfo.albumName
-            imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
+            imageTableName = accoID+'-'+albumName+'-'+'manual'+'-images'
             imageInfoList = db.readAllEntries(imageTableName)
             for imageInfo in imageInfoList:
                 req = {'S3Object': {'Bucket': imageTableName, 'Name': imageInfo.fileName.lstrip('url_')}}
                 allImageReqs.append(req)
+        print('All albums left ', albumInfoList)
+        print('All image reqs', allImageReqs)
 
         # Create a label map through image labels using rekognition
         labelMp = {}
@@ -435,6 +332,7 @@ def sage_create_albums():
                 else:
                     labelMp[labelName] = [idx]
         labelMp = dict(sorted(labelMp.items(), key=lambda x: len(x[1]), reverse=True))
+        print('labelMp', labelMp)
         
         # Create albums using the label map
         albumMp = {}
@@ -447,6 +345,7 @@ def sage_create_albums():
                 else:
                     albumMp[key] = [idx]
                 vis[idx] = True
+        print('albumMp', albumMp)
 
         # Insert new auto album entries and create new image tables
         for albumName, imageIdxList in albumMp.items():
@@ -458,7 +357,7 @@ def sage_create_albums():
                 req = allImageReqs[idx]
                 fileName = req['S3Object']['Name']
                 fileBucket = req['S3Object']['Bucket']
-                imageInfo = db.readEntry(fileBucket, fileName)
+                imageInfo = db.readEntry(fileBucket, 'url_'+fileName)
                 db.insertEntry(autoImageTableName, imageInfo)
 
         # Return the automatically created album names and their covers
@@ -474,8 +373,8 @@ def sage_create_albums():
                     fileName = os.path.basename(item['Key'])
                     if fileName.startswith('url'):
                         fileFormat = fileName.split('.')[1]
-                        full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-                        s3client.download_file(imageTableName, item['Key'], full_file_path)
+                        full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
+                        s3client.download_file(fileBucketName, item['Key'], full_file_path)
                         coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
                         break
             covers.append({"albumName" : albumName, "coverImage" : coverImage}) 
@@ -493,13 +392,14 @@ def sage_create_albums():
             if 'Contents' in resp:
                 firstItem = resp['Contents'][0]
                 fileFormat = fileName.split('.')[1]
-                full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
                 s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
                 coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
                 covers.append({"albumName" : albumName, "coverImage" : coverImage})
             else:
                 covers.append({"albumName" : albumName, "coverImage" : None}) 
-
+    
+    # session['isAuto'] = False # tmp
     resp = {
         "success" : True,
         "covers"  : covers
@@ -522,14 +422,16 @@ def get_album_names():
     """ 
 
     # Lookup the album table of the user
+    session['isAuto'] = False ## tmp ##
     isAuto = session['isAuto']
     mode   = 'auto' if isAuto else 'manual'
     accoID = session['currentUser']
     albumTableName = accoID+'-albums'
-    albumInfoList = db.readAllEntries(albumTableName)
+    albumInfoList = db.readEntries(albumTableName, attriName='albumType', attriVal=mode)
     covers = []
     for albumInfo in albumInfoList:
         albumName = albumInfo.albumName
+        print(albumName)
         imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
         coverImage = None
         resp = s3client.list_objects_v2(Bucket=imageTableName)
@@ -538,7 +440,7 @@ def get_album_names():
                 fileName = os.path.basename(item['Key'])
                 if fileName.startswith('url'):
                     fileFormat = fileName.split('.')[1]
-                    full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                    full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
                     s3client.download_file(imageTableName, item['Key'], full_file_path)
                     coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
                     break
@@ -580,7 +482,7 @@ def display_album():
         fileName = imageInfo.fileName
         bucketName = imageInfo.fileBucket
         fileFormat = fileName.split('.')[1]
-        full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+        full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
         s3client.download_file(bucketName, fileName, full_file_path)
         value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
         fileValues.append(value)
@@ -637,7 +539,7 @@ def sage_display_album():
             print(labelName)
             if labelName in targetLabels:
                 fileFormat = fileName.split('.')[1]
-                full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
                 s3client.download_file(imageTableName, imageInfo.fileName, full_file_path)
                 value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
                 fileValues.append(value)
@@ -676,14 +578,15 @@ def delete_manual_album():
     accoID = session['currentUser']
     albumTableName = accoID+'-albums'
     imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
-    db.deleteEntry(albumTableName, albumName)
+    db.deleteEntry(albumTableName, albumName, mode)
     db.deleteTable(imageTableName)
 
     # Delete all the image objects from the s3 bucket and the bucket as well
     imageObjs = s3client.list_objects_v2(Bucket=imageTableName)
-    for obj in imageObjs['Contents']:
-        objKey = obj['Key']
-        s3client.delete_object(Bucket=imageTableName, Key=objKey)
+    if 'Contents' in imageObjs:
+        for obj in imageObjs['Contents']:
+            objKey = obj['Key']
+            s3client.delete_object(Bucket=imageTableName, Key=objKey)
     s3client.delete_bucket(Bucket=imageTableName)
     
     resp = {
@@ -726,12 +629,13 @@ def overwrite_manual_albums():
         albumName = albumInfo.albumName
         albumType = albumInfo.albumType
         db.deleteEntry(albumTableName,albumName,albumType)
-        db.insertEntry(albumTableName,albumName,'manual')
+        db.insertEntry(albumTableName,ALBUMINFO(albumName,'manual'))
         oldImageTableName = accoID+'-'+albumName+'-'+oldMode+'-images'
         newImageTableName = accoID+'-'+albumName+'-'+newMode+'-images'
         db.deleteTable(oldImageTableName)
         db.createTable(newImageTableName, 'fileName')
     
+    session['isAuto'] = False
     resp =  {
         'success' : True
     }

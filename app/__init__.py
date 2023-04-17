@@ -167,20 +167,6 @@ class DB:
         print("Successfully inserted data into {} table".format(tableName))
         return
 
-    # tmp
-    def insertFileInfo(self, tableName, fileInfo):
-
-        table = dynamodb.Table(tableName)
-        table.put_item(
-            Item = { 
-                'fileKey'     : fileInfo.fileKey,
-                'fileSize'    : fileInfo.fileSize,
-                'fileLocation': fileInfo.fileLocation
-            }
-        )
-        print("Successfully inserted data into {} table".format(tableName))
-        return
-
     #######################################
     ###########     Read     ##############
     #######################################
@@ -231,6 +217,7 @@ class DB:
                     entries.append(ALBUMINFO(**item))
                 elif 'image' in tableName: 
                     entries.append(FILEINFO(**item))
+        return entries
 
     def readAllEntries(self, tableName):
         currentTables = dynamodb_client.list_tables()['TableNames']
@@ -246,38 +233,9 @@ class DB:
             return [FILEINFO(**item) for item in response['Items']]
 
 
-    # tmp
-    def readFileInfo(self, tableName, fileKey):
-
-        table = dynamodb.Table(tableName)
-        try:
-            response = table.get_item(
-                Key={
-                    'fileKey': fileKey
-                }
-            )
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                print("Table does not exist")
-            elif e.response['Error']['Code'] == 'ValidationError':
-                print("Invalid parameter: " + e.response['Error']['Message'])
-            else:
-                print("Unexpected error: " + e.response['Error']['Message'])
-        else:
-            if 'Item' not in response:
-                print("Item not found :(")
-                return None
-            else:
-                item = response['Item']
-                print(item)
-                return FILEINFO(**item)
-
-
-
     #######################################
     ###########     Delete    #############
     #######################################
-
     def deleteEntry(self, tableName, pKey, sKey=None):
 
         table   = dynamodb.Table(tableName)
@@ -293,7 +251,9 @@ class DB:
             response = table.delete_item(
                 Key = req
             )
+            table.meta.client.get_waiter('table_exists').wait(TableName=tableName)
         except ClientError as e:
+            print("Problem request is: ", req)
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 print("Table does not exist")
             elif e.response['Error']['Code'] == 'ValidationError':
@@ -316,50 +276,21 @@ class DB:
 
         response = table.scan()
         for item in response['Items']:
+            print('item', item)
             if item[attriName] == attriVal:
-                if tableType == 'accounts':
-                    self.deleteEntry(tableName, item[pKeyName])
-                else:
+                if tableType == 'album':
+                    print('pKeyName = ' + pKeyName, 'sKeyName = ' + sKeyName)
                     self.deleteEntry(tableName, item[pKeyName], item[sKeyName])
+                else:
+                    self.deleteEntry(tableName, item[pKeyName])
 
     def deleteTable(self, tableName):
-        dynamodb_client.delete_table(TableName=tableName)
-
-    # tmp
-    def delFileInfo(self, tableName, fileKey):
-        
+        # dynamodb_client.delete_table(TableName=tableName)
         table = dynamodb.Table(tableName)
-        try:
-            response = table.delete_item(
-                Key={
-                    'fileKey': fileKey
-                }
-            )
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                print("Table does not exist")
-            elif e.response['Error']['Code'] == 'ValidationError':
-                print("Invalid parameter: " + e.response['Error']['Message'])
-            else:
-                print("Unexpected error: " + e.response['Error']['Message'])
-        else:
-            if 'Item' not in response:
-                print("Item not found :(")
-        return
+        table.delete()
+        table.wait_until_not_exists()
+
     
-    # tmp
-    def delAllFileInfo(self, tableName):
-
-        table = dynamodb.Table(tableName)
-        response = table.scan()
-        with table.batch_writer() as batch:
-            for item in response['Items']:
-                batch.delete_item(
-                    Key={
-                        'fileKey': item['fileKey']
-                    }
-                )
-        return
 
 
 
