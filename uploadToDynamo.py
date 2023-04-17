@@ -1,5 +1,5 @@
 import json
-import datetime
+from datetime import datetime
 import boto3
 
 print('Loading function')
@@ -11,7 +11,7 @@ boto_session = boto3.Session(
 )
 dynamodb = boto_session.resource('dynamodb')
 dynamodb_client = boto_session.client('dynamodb')
-
+cloudwatch = boto_session.client('cloudwatch')
 
 
 def lambda_handler(event, context): 
@@ -31,7 +31,33 @@ def lambda_handler(event, context):
                 'Disk_Usage'            : Disk_Usage
             }
         )
-
+        #upload stats to cloudwatch
+        
+        cloudwatch.put_metric_data (
+            Namespace = 'PerformanceData',
+            MetricData = [
+                {
+                    'MetricName': 'CPU_Usage',
+                    'Timestamp': datetime.utcnow(),
+                    'Unit': 'None',
+                    'Value': float(CPU_Usage)
+                },
+                {
+                    'MetricName': 'Mem_Usage',
+                    'Timestamp': datetime.utcnow(),
+                    'Unit': 'None',
+                    'Value': float(Mem_Usage)
+                },
+                {
+                    'MetricName': 'Disk_Usage',
+                    'Timestamp': datetime.utcnow(),
+                    'Unit': 'None',
+                    'Value': float(Disk_Usage)
+                }
+            ]
+        )
+        #print("CONTENT TYPE: " + response['ContentType'])
+        #return response['ContentType']
         response = {
             'statusCode': 200,
             'body': json.dumps("OK")
@@ -41,5 +67,3 @@ def lambda_handler(event, context):
     except Exception as e:
         print("Error:", e)
         return "Error:" + e
-
-
