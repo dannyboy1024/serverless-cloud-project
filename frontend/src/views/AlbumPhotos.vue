@@ -206,7 +206,7 @@ export default {
                         })
                         let form = new FormData()
                         form.append('album', this.albumName);
-                        form.append('image', this.file)
+                        form.append('image', JSON.stringify(file))
                         axios.post('/api/upload_image', form, { headers: { 'Content-Type': 'multipart/form-data' } })
                             .then(res => {
                                 console.log('upload request return info:', res);
