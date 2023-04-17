@@ -285,8 +285,14 @@ export default {
                 form.append('labels', labelList)
                 axios.post('/api/sage_display_album', form).then(res => {
                     if (res.status === 200) {
-                        console.log(res);
-                        this.photoAlbums = res.images;
+                        response.data.images.forEach((v) => {
+                        let content = eval('(' + v.content + ')');
+                        this.photoAlbums.push({
+                            'url': content.url,
+                            'name': content.name
+                        })
+                        this.photoList.push(content.url)
+                    })
                     }
                 })
             }
