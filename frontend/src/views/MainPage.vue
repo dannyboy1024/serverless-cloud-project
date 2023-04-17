@@ -183,7 +183,7 @@ export default {
             let form = new FormData();
             form.append('isAuto', this.auto);
             if (this.auto == true) {
-                axios.put(
+                axios.post(
                     '/api/sage_create_albums', form
                 ).then((response) => {
                     if (response.status === 200) {
@@ -200,7 +200,7 @@ export default {
             }
         },
         rewrite() {
-            axios.put({
+            axios.post({
                 url: '/api/overwrite_manual_albums'
             }).then((response) => {
                 if (response.status === 200) {
@@ -222,7 +222,7 @@ export default {
             }).then(() => {
                 let form = new FormData();
                 form.append('album', albumName);
-                axios.delete(
+                axios.post(
                     '/api/delete_album', form
                 ).then((response) => {
                     if (response.status === 200) {
