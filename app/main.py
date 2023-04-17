@@ -15,8 +15,9 @@ from datetime import datetime, timedelta
 
 # AWS Setup
 # webapp_url = 'https://3bynfupmn3.execute-api.us-east-1.amazonaws.com/dev'
+# webapp_url = 'http://192.168.2.14:5051'
+webapp_url = 'http://127.0.0.1:5000'
 # os_file_path = '/tmpDir'
-webapp_url = 'http://192.168.2.14:5051'
 os_file_path = os.getcwd()
 bucket_name = 'ece1779-a3-files'
 # def provision_aws():
@@ -268,7 +269,7 @@ def delete_image():
     # Get album name
     data      = request.form
     albumName = str(data.get('album'))
-    imageName = str(data.get('name'))
+    imageName = 'url_'+str(data.get('name'))
     isAuto    = session['isAuto']
     mode      = 'auto' if isAuto else 'manual'
 
@@ -295,6 +296,7 @@ def delete_image():
 
     # Delete the image from the s3 bucket
     s3client.delete_object(Bucket=bucketName, Key=imageName)
+    s3client.delete_object(Bucket=bucketName, Key=imageName.lstrip('url_'))
     resp = {
         'success' : True,
         'message' : 'Image found :)'
@@ -418,7 +420,7 @@ def sage_create_albums():
             imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             imageInfoList = db.readAllEntries(imageTableName)
             for imageInfo in imageInfoList:
-                req = {'S3Object': {'Bucket': imageTableName, 'Name': imageInfo.fileName}}
+                req = {'S3Object': {'Bucket': imageTableName, 'Name': imageInfo.fileName.lstrip('url_')}}
                 allImageReqs.append(req)
 
         # Create a label map through image labels using rekognition
@@ -456,7 +458,7 @@ def sage_create_albums():
                 req = allImageReqs[idx]
                 fileName = req['S3Object']['Name']
                 fileBucket = req['S3Object']['Bucket']
-                imageInfo = db.readEntry(fileBucket, fileName, fileBucket)
+                imageInfo = db.readEntry(fileBucket, fileName)
                 db.insertEntry(autoImageTableName, imageInfo)
 
         # Return the automatically created album names and their covers
@@ -465,18 +467,18 @@ def sage_create_albums():
             firstReq = allImageReqs[0]
             fileName = firstReq['S3Object']['Name']
             fileBucketName = firstReq['S3Object']['Bucket']
-            # bucket = s3client.Bucket(fileBucketName)
-            # firstItem = next(iter(bucket.objects.all()), None)
+            coverImage = None
             resp = s3client.list_objects_v2(Bucket=fileBucketName)
             if 'Contents' in resp:
-                firstItem = resp['Contents'][0]
-                fileFormat = fileName.split('.')[1]
-                full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-                s3client.download_file(fileBucketName, firstItem['Key'], full_file_path)
-                coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-                covers.append({"albumName" : albumName, "coverImage" : coverImage})
-            else:
-                covers.append({"albumName" : albumName, "coverImage" : None}) 
+                for item in resp['Contents']:
+                    fileName = os.path.basename(item['Key'])
+                    if fileName.startswith('url'):
+                        fileFormat = fileName.split('.')[1]
+                        full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                        s3client.download_file(imageTableName, item['Key'], full_file_path)
+                        coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                        break
+            covers.append({"albumName" : albumName, "coverImage" : coverImage}) 
 
     # Exiting the auto mode
     else:
@@ -609,7 +611,8 @@ def sage_display_album():
     # Get album name and labels
     data         = request.form
     albumName    = str(data.get('album'))
-    targetLabels = list(data.get('labels'))
+    targetLabels = str(data.get('labels'))
+    print('target labels are', targetLabels)
     isAuto       = session['isAuto']
     mode         = 'auto' if isAuto else 'manual'
 
@@ -621,7 +624,7 @@ def sage_display_album():
     fileValues = []
     fileNames  = []
     for imageInfo in imageInfoList:
-        fileName = imageInfo.fileName
+        fileName = imageInfo.fileName.lstrip('url_')
         bucketName = imageInfo.fileBucket
         req  = {'S3Object': {'Bucket': bucketName, 'Name': fileName}}
 
@@ -635,15 +638,16 @@ def sage_display_album():
             if labelName in targetLabels:
                 fileFormat = fileName.split('.')[1]
                 full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-                s3client.download_file(imageTableName, fileName, full_file_path)
+                s3client.download_file(imageTableName, imageInfo.fileName, full_file_path)
                 value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
                 fileValues.append(value)
                 fileNames.append(fileName)
                 break
 
     resp = OrderedDict()
-    resp["images"]    = fileValues[:]
-    resp["fileNames"] = fileNames[:]
+    files = [{'content' : fileValues[i], 'name' : fileNames[i]} for i in range(len(fileNames))]
+    resp["images"] = files
+    print(resp)
     response = webapp.response_class(
         response=json.dumps(resp),
         status=200,
