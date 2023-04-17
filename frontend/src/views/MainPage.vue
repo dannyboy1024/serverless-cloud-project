@@ -222,7 +222,7 @@ export default {
             }).then(() => {
                 let form = new FormData();
                 form.append('album', albumName);
-                axios.post(
+                axios.delete(
                     '/api/delete_album', form
                 ).then((response) => {
                     if (response.status === 200) {
@@ -230,7 +230,9 @@ export default {
                             message: 'sucessfully delete album',
                             type: 'success'
                         });
-                        this.initPhoteAbulm();
+                        this.photoAlbums.filter((item) => {
+                            return item.name !== albumName;
+                        });
                         location.reload();
                     } else {
                         this.$message.error(response.data.message);
