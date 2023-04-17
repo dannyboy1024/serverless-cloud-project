@@ -23,8 +23,10 @@
                         </div>
                     </el-col>
                     <el-col v-if="this.auto == true">
-                        Want to overwrite the old album? &nbsp;
-                        <el-button type="success" round @click="rewrite()"></el-button>
+                        <div style="float:left">
+                            Want to overwrite the old album? &nbsp;
+                            <el-button type="success" icon="el-icon-check" circle @click="rewrite()"></el-button>
+                        </div>
                     </el-col>
                     <br><br><br>
                     <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName"
