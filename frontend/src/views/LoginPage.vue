@@ -43,15 +43,19 @@ import axios from 'axios';
             login() {
                 this.$refs.loginForm.validate((valid) => {
                     if (valid) {
-                        axios.post('/login', this.loginForm).then((response) => {
+                        let form = new FormData();
+                        form.append('username', this.loginForm.username);
+                        form.append('password', this.loginForm.password);
+                        axios.post('/api/login', form).then((response) => {
                             if (response.status === 200) {
                                 this.$message({
                                     message: 'sucessfully logged in',
                                     type: 'success'
                                 });
-                                this.$router.push({ path: '/dashboard' , params : {username: this.loginForm.username}}, window.location.reload());
+                                console.log(this.loginForm.username);
+                                this.$router.push({ path: '/dashboard' , query : {username: this.loginForm.username}});
                             } else {
-                                this.$message.error(response.data.message);
+                                this.$message.error(response.message);
                             }
                         });
                     } else {

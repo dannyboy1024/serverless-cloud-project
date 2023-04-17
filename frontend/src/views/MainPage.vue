@@ -24,7 +24,7 @@
                     </el-col>
                     <el-col v-if="this.auto == true">
                         Want to overwrite the old album? &nbsp;
-                        <el-button type="success" round @click="rewrite()">成功按钮</el-button>
+                        <el-button type="success" round @click="rewrite()"></el-button>
                     </el-col>
                     <br><br><br>
                     <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName"
@@ -38,8 +38,10 @@
                             <div style="padding: 14px;">
                                 <span>{{ album.albumName }}</span>
                                 <div class="bottom clearfix">
+                                    <el-button style="position: relative; float:left" circle icon="el-icon-delete"
+                                        @click="deleteAlbum(album.albumName)"></el-button>
                                     <router-link class="router" target="_blank"
-                                        :to="{ name: 'AlbumPhotos', query: { albumName: album.albumName } }">
+                                        :to="{ name: 'AlbumPhotos', query: { albumName: album.albumName, userName: userName } }">
                                         open
                                     </router-link>
                                 </div>
@@ -47,6 +49,7 @@
 
                         </el-card>
                     </el-col>
+                    <br><br><br>
                 </el-row>
             </el-tab-pane>
             <el-tab-pane label="Manage Alblum" name="third">third</el-tab-pane>
@@ -142,21 +145,12 @@ export default {
                         });
                         this.visible.addNewDialog = false;
                         this.initPhoteAbulm();
+                        location.reload();
                     } else {
                         this.$message.error(response.data.message);
                     }
                 });
-                // this.$http.post('/api/album', this.form).then((response) => {
-                //     if (response.status === 200) {
-                //         this.$message({
-                //             message: 'sucessfully add a new album',
-                //             type: 'success'
-                //         });
-                //         this.visible.addNewDialog = false;
-                //     } else {
-                //         this.$message.error(response.data.message);
-                //     }
-                // });
+
             }
         },
         // openAlbum(album) {
@@ -174,7 +168,7 @@ export default {
                         message: 'sucessfully logout',
                         type: 'success'
                     });
-                    this.$router.push({ path: '/login' });
+                    this.$router.push({ path: '/' });
                 } else {
                     this.$message.error(response.data.message);
                 }
@@ -186,13 +180,12 @@ export default {
                 this.initPhoteAbulm();
                 this.textContent = 'Need auto categorize?'
             }
+            let form = new FormData();
+            form.append('isAuto', this.auto);
             if (this.auto == true) {
-                axios.put({
-                    url: '/api/sage_create_albums',
-                    data: {
-                        isAuto: this.auto
-                    }
-                }).then((response) => {
+                axios.put(
+                    '/api/sage_create_albums', form
+                ).then((response) => {
                     if (response.status === 200) {
                         this.$message({
                             message: 'sucessfully auto categorize albums',
@@ -219,10 +212,42 @@ export default {
                     this.$message.error(response.data.message);
                 }
             })
+        },
+        deleteAlbum(albumName) {
+            console.log(albumName);
+            this.$confirm('This will permanently delete the album. Continue?', 'Warning', {
+                confirmButtonText: 'OK',
+                cancelButtonText: 'Cancel',
+                type: 'warning'
+            }).then(() => {
+                let form = new FormData();
+                form.append('album', albumName);
+                axios.delete(
+                    '/api/delete_album', form
+                ).then((response) => {
+                    if (response.status === 200) {
+                        this.$message({
+                            message: 'sucessfully delete album',
+                            type: 'success'
+                        });
+                        this.initPhoteAbulm();
+                        location.reload();
+                    } else {
+                        this.$message.error(response.data.message);
+                    }
+                });
+            }).catch(() => {
+                this.$message({
+                    type: 'info',
+                    message: 'Delete canceled'
+                });
+            });
+
         }
     },
     created() {
-        this.userName = this.$route.params.username;
+        console.log(this.$route.query);
+        this.userName = this.$route.query.username;
     },
     mounted() {
         this.initPhoteAbulm();

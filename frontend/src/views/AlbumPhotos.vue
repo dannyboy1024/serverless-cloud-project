@@ -11,17 +11,18 @@
                 </div>
             </el-col>
             <br><br><br>
-           <el-col :span="6" >
+            <el-col :span="6">
                 <div style="float: left">
                     <el-input v-model="search" style="width:200px"></el-input>
                     &nbsp;&nbsp;&nbsp;&nbsp;
-                    <el-button type="primary" slot="append" icon="el-icon-search" @click="search">search</el-button>
+                    <el-button type="primary" slot="append" icon="el-icon-search" @click="searchAlbum()">search</el-button>
                 </div>
-           </el-col>
+            </el-col>
             <br> <br><br>
             <el-col :span="6" v-for="(photo, index) in photoAlbums" :key="index">
                 <el-card class="photo-card">
-                    <el-image style="width: 100%; height: 250px; " :src="photo.url" :preview-src-list="photoList" fit="contain">
+                    <el-image style="width: 100%; height: 250px; " :src="photo.url" :preview-src-list="photoList"
+                        fit="contain">
                     </el-image>
                     <el-button class="button" icon="el-icon-delete" circle @click="deleteImage(photo.name)"></el-button>
                 </el-card>
@@ -62,11 +63,12 @@
 
 <script>
 import axios from 'axios';
+import AWS from 'aws-sdk';
 export default {
     data() {
         return {
             albumName: '',
-            photoList : [],
+            photoList: [],
             photoAlbums: [],
             visible: {
                 addNewPhoto: false
@@ -78,23 +80,31 @@ export default {
                 dialogVisible: false,
                 dialogImageUrl: ''
             },
-            search: ''
+            search: '',
+            file: null,
+            userName: ''
         }
     },
     created() {
         console.log(this.$route.query);
         this.albumName = this.$route.query.albumName;
+        this.userName = this.$route.query.userName;
         this.getAlbumPhotos();
+        AWS.config.update({
+            accessKeyId: 'AKIAVW4WDBYWM3DT23W7',
+            secretAccessKey: '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',
+            region: 'us-east-1'
+        })
     },
     methods: {
         getAlbumPhotos() {
             let form = new FormData();
-            form.append('album',this.albumName)
-            axios.post('/api/display_album' , form).then((response) => {
+            form.append('album', this.albumName)
+            axios.post('/api/display_album', form).then((response) => {
                 if (response.status === 200) {
                     console.log(response);
-                    response.data.images.forEach((v)=>{
-                        let content = eval('('+ v.content +')')
+                    response.data.images.forEach((v) => {
+                        let content = eval('(' + v.content + ')');
                         this.photoAlbums.push({
                             'url': content.url,
                             'name': content.name
@@ -112,7 +122,17 @@ export default {
         },
         handlePicChange(file, fileList) {
             console.log(fileList);
+            let rawFile = file.raw
+            const isValid = (rawFile.type === 'image/jpeg' || rawFile.type === 'image/png' || rawFile.type === 'image/gif' || rawFile.type === 'image/bmp' || rawFile.type === 'image/webp');
+            if (!isValid) {
+                this.$message.error('Image format is not correct!, please choose jpg/png/gif/bmp/webp format image!');
+                this.$refs.child.clearFiles();
+                return false;
+            }
+            this.file = rawFile;
             this.uploadInfo.hideUploadEdit = (fileList.length >= this.uploadInfo.lengthLimit);
+
+            return isValid;
         },
         handlePicRemove() {
             console.log(this.$refs.child.uploadFiles);
@@ -124,27 +144,92 @@ export default {
             this.$refs.child.clearFiles();
             this.uploadInfo.hideUploadEdit = false;
         },
+        // submitPhoto() {
+        //     console.log(this.$refs.child.uploadFiles);
+        //     if (this.$refs.child.uploadFiles.length !== 0) {
+        //         let form = new FormData()
+        //         form.append('album', this.albumName);
+        //         let file = this.$refs.child.uploadFiles[0];
+        //         console.log(this.$refs.child.uploadFiles[0]);
+        //         // form.append('image', JSON.stringify(file))
+        //         console.log(this.file);
+        //         form.append('image', this.file)
+        //         console.log(JSON.stringify(form));
+        //         axios.post('/api/upload_image', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        //             .then(res => {
+        //                 console.log('upload request return info:', res);
+        //                 if (res.status == 200) {
+        //                     this.$refs.child.uploadFiles.pop();
+        //                     this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
+        //                     this.visible.addNewPhoto = false;
+        //                     this.$message.success('Upload successfully!');
+        //                     this.photoAlbums.push({
+        //                         'url': file.url,
+        //                         'name': file.name
+        //                     })
+        //                 } else {
+        //                     this.$message.warning('Fail to upload!')
+        //                 }
+        //             })
+        //             .catch(error => {
+        //                 this.$message.warning(error);
+        //             })
+        //     } else {
+        //         this.$message.warning('Image is empty, please choose one image!');
+        //     }
+        // },
         submitPhoto() {
-            console.log(this.$refs.child.uploadFiles);
             if (this.$refs.child.uploadFiles.length !== 0) {
-                let form = new FormData()
-                form.append('album', this.albumName);
-                form.append('image', JSON.stringify(this.$refs.child.uploadFiles[0]))
-                axios.post('/api/upload_image', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-                    .then(res => {
-                        console.log('upload request return info:', res);
-                        if (res.status == 200) {
-                            this.$refs.child.uploadFiles.pop();
-                            this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
-                            this.visible.addNewPhoto = false;
-                        } else {
-                            this.$message.warning('Fail to upload!')
-                        }
-                    })
-                    .catch(error => {
-                        this.$message.warning(error);
-                    })
-            } else {
+                let file = this.$refs.child.uploadFiles[0];
+                let s3 = new AWS.S3();
+                let bucketName = this.userName + '-' + this.albumName + '-manual-images';
+                let params = {
+                    Bucket: bucketName,
+                    Key: file.name,
+                    Body: file.raw,
+                    ContentType: file.raw.type
+                };
+                console.log(params);
+                s3.upload(params, (err, data) => {
+                    if (err) {
+                        console.log(err);
+                        this.$message.warning('Fail to upload!')
+                    } else {
+                        console.log(data);
+                        this.$refs.child.uploadFiles.pop();
+                        this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
+                        this.visible.addNewPhoto = false;
+                        this.$message.success('Upload successfully to s3!');
+                        this.photoAlbums.push({
+                            'url': file.url,
+                            'name': file.name
+                        })
+                        let form = new FormData()
+                        form.append('album', this.albumName);
+                        form.append('image', this.file)
+                        axios.post('/api/upload_image', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+                            .then(res => {
+                                console.log('upload request return info:', res);
+                                if (res.status == 200) {
+                                    this.$refs.child.uploadFiles.pop();
+                                    this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
+                                    this.visible.addNewPhoto = false;
+                                    this.$message.success('Upload successfully to db!');
+                                    this.photoAlbums.push({
+                                        'url': file.url,
+                                        'name': file.name
+                                    })
+                                } else {
+                                    this.$message.warning('Fail to upload!')
+                                }
+                            })
+                            .catch(error => {
+                                this.$message.warning(error);
+                            })
+                    }
+                })
+            }
+            else {
                 this.$message.warning('Image is empty, please choose one image!');
             }
         },
@@ -160,9 +245,9 @@ export default {
             }).then(() => {
                 let form = new FormData()
                 form.append('album', this.albumName)
-                form.append('name',name)
+                form.append('name', name)
                 console.log('delete image', name);
-                axios.post('/api/delete_image',form).then(res => {
+                axios.post('/api/delete_image', form).then(res => {
                     console.log('delete request return info:', res);
                     if (res.status == 200) {
                         this.$message({
@@ -170,7 +255,9 @@ export default {
                             message: 'Delete successfully!'
                         });
                         this.uploadInfo.dialogVisible = false;
-                        this.getAlbumPhotos();
+                        this.photoAlbums = this.photoAlbums.filter((v) => {
+                            return v.name !== name;
+                        })
                     } else {
                         this.$message.warning('Fail to delete!')
                     }
@@ -185,20 +272,26 @@ export default {
                 });
             });
         },
-        // search(){
-        //     console.log(this.search);
-        //     if(this.search === ''){
-        //        this.$message.warning("Please input the search content!");
-        // }
-        //     else{
-        //         axios.post({
-        //             url: '/api/sage_display_album',
-        //             data: {
-        //                 album: this.albumName,
-        //                 labels: this.search
-        //             }
-        //         })
-        //     }
+        searchAlbum() {
+            console.log(this.search);
+            if (this.search === '') {
+                this.$message.warning("Please input the search content!");
+            }
+            else {
+                console.log(this.search);
+                let labelList = this.search.split(' ');
+                let form = new FormData();
+                form.append('album', this.albumName)
+                form.append('labels', labelList)
+                axios.post('/api/sage_display_album', form).then(res => {
+                    if (res.status === 200) {
+                        console.log(res);
+                        this.photoAlbums = res.images;
+                    }
+                })
+            }
+        },
+
     },
 }
 </script>
@@ -213,6 +306,7 @@ export default {
     height: 350px;
     align-items: center;
 }
+
 .button {
     margin-bottom: 10px;
     float: right;

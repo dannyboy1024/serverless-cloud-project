@@ -1,11 +1,13 @@
 from flask import render_template, url_for, request, session, json
-from app import webapp, db, FILEINFO, ALBUMINFO, ACCOUNTINFO
+from app import webapp, db, s3client, rekclient, FILEINFO, ALBUMINFO, ACCOUNTINFO
 from collections import OrderedDict
 import boto3
 from pathlib import Path
 import os
 # import hashlib
 import base64
+from io import BytesIO
+from werkzeug.datastructures import FileStorage
 import requests
 # import plotly.graph_objs as go
 # import pytz
@@ -14,15 +16,15 @@ from datetime import datetime, timedelta
 # AWS Setup
 # webapp_url = 'https://3bynfupmn3.execute-api.us-east-1.amazonaws.com/dev'
 # os_file_path = '/tmpDir'
-webapp_url = 'http://127.0.0.1:5000'
+webapp_url = 'http://192.168.2.14:5051'
 os_file_path = os.getcwd()
 bucket_name = 'ece1779-a3-files'
-def provision_aws():
-    global s3client, rekclient
-    s3client  = boto3.client('s3', region_name='us-east-1')
-    rekclient = boto3.client('rekognition', region_name='us-east-1')
-    print("Provision done")
-provision_aws()
+# def provision_aws():
+#     global s3client, rekclient
+#     s3client  = boto3.client('s3', region_name='us-east-1')
+#     rekclient = boto3.client('rekognition', region_name='us-east-1')
+#     print("Provision done")
+# provision_aws()
 
 
 @webapp.route('/')
@@ -68,7 +70,7 @@ def uploadToDBandS3():
         os.remove(full_file_path)
     with open(full_file_path, 'w') as fp:
         fp.write(value)
-    s3client.upload_file(full_file_path, bucket_name, filename)
+        s3client.upload_file(full_file_path, bucket_name, filename)
     db.insertFileInfo(tableName='fileInfo', fileInfo=FILEINFO(key, full_file_path, size))
 
     resp = {
@@ -178,18 +180,15 @@ def upload_image():
     data          = request.form
     albumName     = str(data.get('album'))
     imageContent  = data.get('image')
-    imageName     = str(eval(imageContent).get('name'))
+    imageName     = 'url_'+str(eval(imageContent).get('name'))
     imageSize     = str(eval(imageContent).get('size'))
-    imageLocation = os.path.join(os_file_path, imageName)
-    value         = base64.b64encode(str(imageContent).encode())
-    # if os.path.isfile(imageLocation):
-    #     os.remove(imageLocation)
-    # with open(imageLocation, 'w') as fp:
-    #     fp.write(value)
+    imageFormat   = imageName.split('.')[1]
+    imageLocation = os.path.join(os_file_path, 'tmp.'+imageFormat)
+    value = base64.b64encode(str(imageContent).encode())
     requestJson = {'value': value, 'path': imageLocation}
     requests.post(webapp_url + '/helper/writeFile', params=requestJson)
     isAuto = session['isAuto']
-    mode   = 'auto' if isAuto else 'manual'
+    mode = 'auto' if isAuto else 'manual'
     
     # Lookup the image. Delete it if it exists.
     accoID = session['currentUser']
@@ -295,7 +294,7 @@ def delete_image():
         return response
 
     # Delete the image from the s3 bucket
-    s3client.delete_object(Bucket=bucketName, Prefix=imageName)
+    s3client.delete_object(Bucket=bucketName, Key=imageName)
     resp = {
         'success' : True,
         'message' : 'Image found :)'
@@ -349,7 +348,18 @@ def create_manual_album():
     db.createTable(imageTableName, pKeyName)
 
     # Create an s3 bucket for the new album
-    s3client.create_bucket(Bucket=imageTableName)
+    print(imageTableName)
+    resp = s3client.create_bucket(Bucket=imageTableName)
+    cors_configuration = {
+        'CORSRules': [{
+            'AllowedOrigins': ['*'],
+            'AllowedMethods': ['HEAD', 'GET', 'POST', 'PUT'],
+            'AllowedHeaders': ['*']
+        }]
+    }
+    s3client.put_bucket_cors(Bucket=imageTableName, CORSConfiguration=cors_configuration)
+    print(f'Successfully created bucket {imageTableName} with CORS configuration: {cors_configuration}')
+    print('s3 resp', resp)
 
     resp = {
         "success" : True,
@@ -522,12 +532,14 @@ def get_album_names():
         coverImage = None
         resp = s3client.list_objects_v2(Bucket=imageTableName)
         if 'Contents' in resp:
-            firstItem = resp['Contents'][0]
-            fileName = os.path.basename(firstItem['Key'])
-            fileFormat = fileName.split('.')[1]
-            full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
-            s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
-            coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+            for item in resp['Contents']:
+                fileName = os.path.basename(item['Key'])
+                if fileName.startswith('url'):
+                    fileFormat = fileName.split('.')[1]
+                    full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
+                    s3client.download_file(imageTableName, item['Key'], full_file_path)
+                    coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                    break
         covers.append({"albumName" : albumName, "coverImage" : coverImage})
     resp = {
         "success" : True,
@@ -605,6 +617,7 @@ def sage_display_album():
     accoID = session['currentUser']
     imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
     imageInfoList = db.readAllEntries(imageTableName)
+    print('imageInfoList', imageInfoList)
     fileValues = []
     fileNames  = []
     for imageInfo in imageInfoList:
@@ -614,8 +627,11 @@ def sage_display_album():
 
         # detect labels in the image and get required images
         resp = rekclient.detect_labels(Image=req)
+        print(resp)
+        print('labels:')
         for label in resp['Labels']:
             labelName = label['Name']
+            print(labelName)
             if labelName in targetLabels:
                 fileFormat = fileName.split('.')[1]
                 full_file_path = os.path.join(os_file_path, 'tmp.'+fileFormat)
@@ -788,8 +804,10 @@ def get_account():
 
     # Get account name and password
     data = request.form
-    accoID = str(data.get('id'))
+    accoID = str(data.get('username'))
     passwd = str(data.get('password'))
+    session['loggedIn'] = False
+    session['isAuto'] = False
 
     # Check if the current user is not logged out
     if session['loggedIn'] == True:
@@ -821,6 +839,8 @@ def get_account():
         return response
 
     # Check password
+    print('passwd', passwd)
+    print(acco.accoPasswd)
     if passwd != acco.accoPasswd:
         # Password doesn't match
         resp = {
@@ -878,7 +898,7 @@ def logout():
     }
     response = webapp.response_class(
         response=json.dumps(resp),
-        status=400,
+        status=200,
         mimetype='application/json'
     )
     return response

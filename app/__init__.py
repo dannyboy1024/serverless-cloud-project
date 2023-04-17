@@ -10,6 +10,8 @@ boto_session = boto3.Session(
     aws_secret_access_key = 'H5yrenMz18TkZ8z/hg2PjrnWOOjp3iTKJSUkXYRm',
     region_name='us-east-1'
 )
+s3client = boto_session.client('s3')
+rekclient = boto_session.client('rekognition')
 dynamodb = boto_session.resource('dynamodb')
 dynamodb_client = boto_session.client('dynamodb')
 
