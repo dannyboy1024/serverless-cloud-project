@@ -222,7 +222,7 @@ export default {
             }).then(() => {
                 let form = new FormData();
                 form.append('album', albumName);
-                axios.delete(
+                axios.post(
                     '/api/delete_album', form
                 ).then((response) => {
                     if (response.status === 200) {

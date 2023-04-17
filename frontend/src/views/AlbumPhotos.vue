@@ -213,7 +213,6 @@ export default {
                                 if (res.status == 200) {
                                     this.$refs.child.uploadFiles.pop();
                                     this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
-                                    this.visible.addNewPhoto = false;
                                     this.$message.success('Upload successfully to db!');
                                 } else {
                                     this.$message.warning('Fail to upload!')
@@ -281,7 +280,8 @@ export default {
                 form.append('labels', labelList)
                 axios.post('/api/sage_display_album', form).then(res => {
                     if (res.status === 200) {
-                        response.data.images.forEach((v) => {
+                        this.photoAlbums = [];
+                        res.data.images.forEach((v) => {
                         let content = eval('(' + v.content + ')');
                         this.photoAlbums.push({
                             'url': content.url,
