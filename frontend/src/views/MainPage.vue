@@ -23,7 +23,7 @@
                 <div style="float: left">
                     &nbsp;&nbsp;{{ this.textContent }}&nbsp;
                     <el-tooltip placement="top" :content="tipContent">
-                        <el-switch v-model="auto" active-color="#13ce66" inactive-color="#ff4949" @change="autoChange()">
+                        <el-switch v-model="auto" active-color="#13ce66" inactive-color="#ff4949" @change="autoChange()" v-loading.fullscreen.lock="loading" :element-loading-text="loadingText">
                         </el-switch>
                     </el-tooltip>
                 </div>
@@ -209,26 +209,50 @@ export default {
         autoChange() {
             console.log(this.auto);
             if (this.auto == false) {
-                this.initPhoteAbulm();
+                // this.initPhoteAbulm();
+                location.reload();
                 this.textContent = 'Need auto categorize?'
                 this.tipContent = 'Click the switch to enable auto categorize, and the system will automatically categorize your photos into different albums.'
             }
             let form = new FormData();
             form.append('isAuto', this.auto);
             if (this.auto == true) {
+                this.loading = true;
+                this.loadingText = 'auto categorizing...';
                 axios.post(
                     '/api/sage_create_albums', form
                 ).then((response) => {
                     if (response.status === 200) {
+                        let data = response.data;
+                        this.photoAlbums = [];
+                        data.covers.forEach((item) => {
+                            let url = ''
+                            if (item.coverImage) {
+                                let imageName = item.coverImage.substring(4)
+                                for (let i = 0; i < this.photoOriginal.length; i++) {
+                                    if (imageName === this.photoOriginal[i].name) {
+                                        url = this.photoOriginal[i].url;
+                                        break;
+                                    }
+                                }
+                            }
+                            this.photoAlbums.push({
+                                albumName: item.albumName,
+                                coverImage: url
+                            });
+                        });
                         this.$message({
                             message: 'sucessfully auto categorize albums',
                             type: 'success'
                         });
-                        this.photoAlbums = response.data.covers;
                     } else {
                         this.$message.error(response.data.message);
                     }
-                })
+                    this.loading = false;
+                }).catch((error) => {
+                    this.$message.error(error);
+                    this.loading = false;
+                });
                 this.textContent = 'Need change back to original albums?'
                 this.tipContent = 'Switch to original albums'
             }

@@ -51,13 +51,13 @@ export default {
     methods: {
         register() {
             this.$refs.registerForm.validate((valid) => {
-                this.loading = true;
                 if (valid) {
                     if (this.registerForm.password !== this.registerForm.confirmPassword) {
                         this.$message.error('passwords do not match');
                         this.loading = false;
                         return false;
                     }
+                    this.loading = true;
                     console.log(this.registerForm);
                     let form = new FormData();
                     form.append('username', this.registerForm.username);
@@ -71,19 +71,18 @@ export default {
                                 message: 'sucessfully registered',
                                 type: 'success'
                             });
-                            this.$router.push({ path: '/dashboard', params: { username: this.registerForm.username } });
+                            this.$router.push({ path: '/dashboard', query: { username: this.registerForm.username } });
                         } else {
                             console.log(response.response);
                             this.$message.error(response.response.data.message);
-                            this.loading = false;
                         }
+                        this.loading = false;
                     })
                         .catch((error) => {
                             console.log(error);
                             this.$message.error(error.response.data.message);
                             this.loading = false;
                         })
-                    this.loading = false;
                     return false;
                 }
             });
