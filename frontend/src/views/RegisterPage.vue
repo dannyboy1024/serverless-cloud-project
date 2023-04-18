@@ -3,7 +3,7 @@
         <div slot="header" class="clearfix">
             <span>register</span>
         </div>
-        <el-form :model="registerForm" :rules="rules" ref="registerForm" label-width="auto" :v-loading="loading">
+        <el-form :model="registerForm" :rules="rules" ref="registerForm" label-width="auto" v-loading="loading">
             <el-form-item label="username" prop="username">
                 <el-input v-model="registerForm.username"></el-input>
             </el-form-item>
@@ -73,13 +73,14 @@ export default {
                             });
                             this.$router.push({ path: '/dashboard', params: { username: this.registerForm.username } });
                         } else {
-                            this.$message.error(response.data.message);
+                            console.log(response.response);
+                            this.$message.error(response.response.data.message);
                             this.loading = false;
                         }
                     })
                         .catch((error) => {
                             console.log(error);
-                            this.$message.error(error);
+                            this.$message.error(error.response.data.message);
                             this.loading = false;
                         })
                     this.loading = false;

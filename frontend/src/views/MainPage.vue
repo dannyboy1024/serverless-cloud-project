@@ -1,61 +1,65 @@
 <template>
     <div>
         <el-row>
-            <h3 style="position: absolute;top:-50px; left:10px">
+            <h2 style="position: absolute;top:-50px; left:10px">
                 Hi, {{ this.userName }}
-            </h3>
+            </h2>
             <el-button style="position: absolute;top:-30px; right:10px" @click="logout">logout</el-button>
         </el-row>
-        <el-tabs v-model="activeName" @tab-click="handleClick">
-            <el-tab-pane label="Home Page" name="first">first</el-tab-pane>
-            <el-tab-pane label="Alblum" name="second">
-                <el-row>
-                    <el-col>
-                        <div style="float: left">
-                            &nbsp;&nbsp;{{ this.textContent }}&nbsp;
-                            <el-switch v-model="auto" active-color="#13ce66" inactive-color="#ff4949"
-                                @change="autoChange()">
-                            </el-switch>
-                        </div>
-                        <div style="float: right">
-                            <el-button type="primary" slot="append" icon="el-icon-plus" @click="addAlbum">add new
-                                album</el-button>
-                        </div>
-                    </el-col>
-                    <el-col v-if="this.auto == true">
+        <el-row style="display: flex; align-items: center;">
+            <el-col :span="10">
+                <div>
+                    <h3 style="text-align: left;"> &nbsp;&nbsp;&nbsp; Below are Your albums, come and create your own album!
+                    </h3>
+                </div>
+            </el-col>
+            <el-col :span="8">
+                <el-button type="primary" icon="el-icon-plus" @click="addAlbum">add new
+                    album</el-button>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col>
+                <div style="float: left">
+                    &nbsp;&nbsp;{{ this.textContent }}&nbsp;
+                    <el-tooltip placement="top" :content="tipContent">
+                        <el-switch v-model="auto" active-color="#13ce66" inactive-color="#ff4949" @change="autoChange()">
+                        </el-switch>
+                    </el-tooltip>
+                </div>
+
+            </el-col>
+            <!-- <el-col v-if="this.auto == true">
                         <div style="float:left">
                             Want to overwrite the old album? &nbsp;
                             <el-button type="success" icon="el-icon-check" circle @click="rewrite()"></el-button>
                         </div>
-                    </el-col>
-                    <br><br><br>
-                    <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName"
-                        :offset="index > 0 ? 0 : 2">
-                        <el-card class="box-card" :body-style="{ padding: '0px' }">
-                            <el-image style="width: 100%; height: 250px" :src="album.coverImage" fit="contain"
-                                v-if="album.coverImage"> </el-image>
-                            <el-image style="width: 100%; height: 250px" v-else :src="require('../assets/fail.png')"
-                                fit="contain">
-                            </el-image>
-                            <div style="padding: 14px;">
-                                <span>{{ album.albumName }}</span>
-                                <div class="bottom clearfix">
-                                    <el-button style="position: relative; float:left" circle icon="el-icon-delete"
-                                        @click="deleteAlbum(album.albumName)"></el-button>
-                                    <router-link class="router" target="_blank"
-                                        :to="{ name: 'AlbumPhotos', query: { albumName: album.albumName, userName: userName } }">
-                                        open
-                                    </router-link>
-                                </div>
-                            </div>
+                    </el-col> -->
+            <br><br><br>
+            <el-col :span="5" v-for="(album, index) in photoAlbums" :key="album.albumName" :offset="index > 0 ? 0 : 2">
+                <el-card class="box-card" :body-style="{ padding: '0px' }">
+                    <el-image style="width: 100%; height: 250px" :src="album.coverImage" fit="contain"
+                        v-if="album.coverImage"> </el-image>
+                    <el-image style="width: 100%; height: 250px" v-else :src="require('../assets/fail.png')" fit="contain">
+                    </el-image>
+                    <div style="padding: 14px;">
+                        <span>{{ album.albumName }}</span>
+                        <div class="bottom clearfix">
+                            <el-button style="position: relative; float:left" circle icon="el-icon-delete"
+                                @click="deleteAlbum(album.albumName)" v-loading.fullscreen.lock="loading"
+                                :element-loading-text="loadingText"></el-button>
+                            <router-link class="router" target="_blank"
+                                :to="{ name: 'AlbumPhotos', query: { albumName: album.albumName, userName: userName } }">
+                                open
+                            </router-link>
+                        </div>
+                    </div>
 
-                        </el-card>
-                    </el-col>
-                    <br><br><br>
-                </el-row>
-            </el-tab-pane>
-            <el-tab-pane label="Manage Alblum" name="third">third</el-tab-pane>
-        </el-tabs>
+                </el-card>
+            </el-col>
+            <br><br><br>
+        </el-row>
+
         <el-dialog title="add a new ablum" :visible.sync="visible.addNewDialog" @closed="cancelUpload">
             <el-form :model="form" ref="form" label-width="auto" class="demo-ruleForm">
                 <el-form-item label="album name" prop="name">
@@ -64,7 +68,8 @@
             </el-form>
             <span slot="footer" class="dialog-footer">
                 <el-button @click="cancelUpload">cancel</el-button>
-                <el-button type="primary" @click="submitAlbum">submit</el-button>
+                <el-button type="primary" @click="submitAlbum" v-loading.fullscreen.lock="loading"
+                    :element-loading-text="loadingText">submit</el-button>
             </span>
         </el-dialog>
     </div>
@@ -77,7 +82,6 @@ export default {
     data() {
         return {
             userName: '',
-            activeName: 'second',
             searchAlbumName: '',
             visible: {
                 addNewDialog: false
@@ -88,7 +92,9 @@ export default {
             photoAlbums: [],
             auto: false,
             textContent: 'Need auto categorize?',
-            loading: false
+            loading: false,
+            tipContent: 'Click the switch to enable auto categorize, and the system will automatically categorize your photos into different albums.',
+            loadingText: ''
         }
     },
     methods: {
@@ -137,6 +143,8 @@ export default {
             } else {
                 let form = new FormData();
                 form.append('album', this.form.name);
+                this.loadingText = 'submitting the album...';
+                this.loading = true;
                 axios.post(
                     '/api/create_album', form, { headers: { 'Content-Type': 'multipart/form-data' } }
                 ).then((response) => {
@@ -151,6 +159,10 @@ export default {
                     } else {
                         this.$message.error(response.data.message);
                     }
+                    this.loading = false;
+                }).catch((error) => {
+                    this.$message.error(error);
+                    this.loading = false;
                 });
 
             }
@@ -181,6 +193,7 @@ export default {
             if (this.auto == false) {
                 this.initPhoteAbulm();
                 this.textContent = 'Need auto categorize?'
+                this.tipContent = 'Click the switch to enable auto categorize, and the system will automatically categorize your photos into different albums.'
             }
             let form = new FormData();
             form.append('isAuto', this.auto);
@@ -199,6 +212,7 @@ export default {
                     }
                 })
                 this.textContent = 'Need change back to original albums?'
+                this.tipContent = 'Switch to original albums'
             }
         },
         rewrite() {
@@ -208,7 +222,7 @@ export default {
                         message: 'sucessfully rewrite albums',
                         type: 'success'
                     });
-                   this.initPhoteAbulm();
+                    this.initPhoteAbulm();
                 } else {
                     this.$message.error(response.data.message);
                 }
@@ -221,6 +235,8 @@ export default {
                 cancelButtonText: 'Cancel',
                 type: 'warning'
             }).then(() => {
+                this.loadingText = 'deleting the album...';
+                this.loading = true;
                 let form = new FormData();
                 form.append('album', albumName);
                 axios.post(
@@ -238,12 +254,14 @@ export default {
                     } else {
                         this.$message.error(response.data.message);
                     }
+                    this.loading = false;
                 });
             }).catch(() => {
                 this.$message({
                     type: 'info',
                     message: 'Delete canceled'
                 });
+                this.loading = false;
             });
 
         }

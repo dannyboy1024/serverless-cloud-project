@@ -21,7 +21,6 @@ webapp_url = 'http://127.0.0.1:5000'
 # os_file_path = '/tmp'
 os_file_path = os.getcwd()
 
-
 @webapp.route('/')
 def main():
     return render_template("main.html")

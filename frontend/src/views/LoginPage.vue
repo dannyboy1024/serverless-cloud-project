@@ -1,9 +1,11 @@
 <template>
     <el-card class="box-card">
         <div slot="header" class="clearfix">
+            <h2 >YourSmartAlbum</h2>
+            <br>
             <span>log in</span>
         </div>
-        <el-form :model="loginForm" :rules="rules" ref="loginForm" label-width="auto">
+        <el-form :model="loginForm" :rules="rules" ref="loginForm" label-width="auto" v-loading="loading">
             <el-form-item label="username" prop="username">
                 <el-input v-model="loginForm.username"></el-input>
             </el-form-item>
@@ -36,13 +38,15 @@ import axios from 'axios';
                     password: [
                         { required: true, message: 'please input password', trigger: 'blur' }
                     ]
-                }
+                },
+                loading : false
             }
         },
         methods: {
             login() {
                 this.$refs.loginForm.validate((valid) => {
                     if (valid) {
+                        this.loading = true;
                         let form = new FormData();
                         form.append('username', this.loginForm.username);
                         form.append('password', this.loginForm.password);
@@ -57,6 +61,10 @@ import axios from 'axios';
                             } else {
                                 this.$message.error(response.message);
                             }
+                            this.loading = false;
+                        }).catch((error) => {
+                            this.$message.error(error.message);
+                            this.loading = false;
                         });
                     } else {
                         return false;

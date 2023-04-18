@@ -1,7 +1,7 @@
 <template>
     <div>
         <h1>
-            {{ albumName }}
+            You are in the Album: &nbsp;&nbsp;&nbsp;{{ albumName }}
         </h1>
         <el-row>
             <el-col>
@@ -15,7 +15,7 @@
                 <div style="float: left">
                     <el-input v-model="search" style="width:200px"></el-input>
                     &nbsp;&nbsp;&nbsp;&nbsp;
-                    <el-button type="primary" slot="append" icon="el-icon-search" @click="searchAlbum()">search</el-button>
+                    <el-button type="primary" slot="append" icon="el-icon-search" @click="searchAlbum()" v-loading.fullscreen.lock="loading" element-loading-text="Searching">search</el-button>
                 </div>
             </el-col>
             <br> <br><br>
@@ -68,6 +68,7 @@ export default {
     data() {
         return {
             albumName: '',
+            photoOriginal: [],
             photoList: [],
             photoAlbums: [],
             visible: {
@@ -82,19 +83,32 @@ export default {
             },
             search: '',
             file: null,
-            userName: ''
+            userName: '',
+            loading: false
         }
     },
     created() {
         console.log(this.$route.query);
         this.albumName = this.$route.query.albumName;
         this.userName = this.$route.query.userName;
+        const photoOriginal = localStorage.getItem('photoOriginal');
+        if(photoOriginal){
+            this.photoOriginal = Array.from(JSON.parse(photoOriginal));
+            console.log(this.photoOriginal);
+            // this.photoOriginal = this.photoOriginal.filter((v) => {
+            //     return v !== '[' && v !== ']';
+            // })
+            // console.log(this.photoOriginal);
+        }
         this.getAlbumPhotos();
         AWS.config.update({
             accessKeyId: 'AKIAVW4WDBYWM3DT23W7',
             secretAccessKey: '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',
             region: 'us-east-1'
         })
+    },
+    beforeUpdate() {
+        localStorage.setItem('photoOriginal', JSON.stringify(this.$data.photoOriginal));
     },
     methods: {
         getAlbumPhotos() {
@@ -104,12 +118,20 @@ export default {
                 if (response.status === 200) {
                     console.log(response);
                     response.data.images.forEach((v) => {
-                        let content = eval('(' + v.content + ')');
+                        let name = v.name.substring(4);
+                        console.log(this.photoOriginal);
+                        let url = ''
+                        for (let i = 0; i < this.photoOriginal.length; i++) {
+                            console.log(this.photoOriginal[i]);
+                            if (this.photoOriginal[i].name === name) {
+                                url = this.photoOriginal[i].url;
+                            }
+                        }
                         this.photoAlbums.push({
-                            'url': content.url,
-                            'name': content.name
+                            'url': url,
+                            'name': name
                         })
-                        this.photoList.push(content.url)
+                        this.photoList.push(url)
                     })
                     console.log(this.photoAlbums);
                 } else {
@@ -144,40 +166,6 @@ export default {
             this.$refs.child.clearFiles();
             this.uploadInfo.hideUploadEdit = false;
         },
-        // submitPhoto() {
-        //     console.log(this.$refs.child.uploadFiles);
-        //     if (this.$refs.child.uploadFiles.length !== 0) {
-        //         let form = new FormData()
-        //         form.append('album', this.albumName);
-        //         let file = this.$refs.child.uploadFiles[0];
-        //         console.log(this.$refs.child.uploadFiles[0]);
-        //         // form.append('image', JSON.stringify(file))
-        //         console.log(this.file);
-        //         form.append('image', this.file)
-        //         console.log(JSON.stringify(form));
-        //         axios.post('/api/upload_image', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-        //             .then(res => {
-        //                 console.log('upload request return info:', res);
-        //                 if (res.status == 200) {
-        //                     this.$refs.child.uploadFiles.pop();
-        //                     this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
-        //                     this.visible.addNewPhoto = false;
-        //                     this.$message.success('Upload successfully!');
-        //                     this.photoAlbums.push({
-        //                         'url': file.url,
-        //                         'name': file.name
-        //                     })
-        //                 } else {
-        //                     this.$message.warning('Fail to upload!')
-        //                 }
-        //             })
-        //             .catch(error => {
-        //                 this.$message.warning(error);
-        //             })
-        //     } else {
-        //         this.$message.warning('Image is empty, please choose one image!');
-        //     }
-        // },
         submitPhoto() {
             if (this.$refs.child.uploadFiles.length !== 0) {
                 let file = this.$refs.child.uploadFiles[0];
@@ -187,7 +175,8 @@ export default {
                     Bucket: bucketName,
                     Key: file.name,
                     Body: file.raw,
-                    ContentType: file.raw.type
+                    ContentType: file.raw.type,
+                    ACL: 'public-read'
                 };
                 console.log(params);
                 s3.upload(params, (err, data) => {
@@ -200,10 +189,17 @@ export default {
                         this.uploadInfo.hideUploadEdit = (this.$refs.child.uploadFiles.length >= this.uploadInfo.lengthLimit);
                         this.visible.addNewPhoto = false;
                         this.$message.success('Upload successfully to s3!');
-                        this.photoAlbums.push({
-                            'url': file.url,
-                            'name': file.name
+                        console.log(this.photoOriginal);
+                        this.photoOriginal.push({
+                            'name': data.Key,
+                            'url': data.Location
                         })
+                        console.log(this.photoOriginal);
+                        this.photoAlbums.push({
+                            'url': data.Location,
+                            'name': data.Key
+                        })
+                        this.photoList.push(data.Location)
                         let form = new FormData()
                         form.append('album', this.albumName);
                         form.append('image', JSON.stringify(file))
@@ -250,7 +246,7 @@ export default {
                             message: 'Delete successfully!'
                         });
                         this.uploadInfo.dialogVisible = false;
-                        this.photoAlbums = this.photoAlbums.filter((v) => {
+                        this.photoOriginal = this.photoOriginal.filter((v) => {
                             return v.name !== name;
                         })
                     } else {
@@ -274,6 +270,7 @@ export default {
             }
             else {
                 console.log(this.search);
+                this.loading = true;
                 let labelList = this.search.split(' ');
                 let form = new FormData();
                 form.append('album', this.albumName)
@@ -282,14 +279,33 @@ export default {
                     if (res.status === 200) {
                         this.photoAlbums = [];
                         res.data.images.forEach((v) => {
-                        let content = eval('(' + v.content + ')');
-                        this.photoAlbums.push({
-                            'url': content.url,
-                            'name': content.name
-                        })
-                        this.photoList.push(content.url)
+                        let name = v.name;
+                        for (let i = 0; i < this.photoOriginal.length; i++) {
+                            if (this.photoOriginal[i].name === name) {
+                                this.photoAlbums.push({
+                                    'url': this.photoOriginal[i].url,
+                                    'name': name
+                                })
+                                this.photoList.push(this.photoOriginal[i].url)
+                                break;
+                            }
+                        }
+                        // let url = this.photoOriginal.forEach((item) => {
+                        //     if (item.name === name) {
+                        //         return v.url;
+                        //     }
+                        // })
+                        // this.photoAlbums.push({
+                        //     'url': url,
+                        //     'name': name
+                        // })
+                        // this.photoList.push(url)
                     })
                     }
+                    this.loading = false;
+                }).catch(error => {
+                    this.$message.warning(error);
+                    this.loading = false;
                 })
             }
         },
