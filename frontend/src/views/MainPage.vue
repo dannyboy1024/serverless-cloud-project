@@ -94,15 +94,33 @@ export default {
             textContent: 'Need auto categorize?',
             loading: false,
             tipContent: 'Click the switch to enable auto categorize, and the system will automatically categorize your photos into different albums.',
-            loadingText: ''
+            loadingText: '',
+            photoOriginal: []
         }
     },
+
     methods: {
         initPhoteAbulm() {
             axios.get('/api/get_album_names').then((response) => {
                 if (response.status === 200) {
                     console.log(response);
-                    this.photoAlbums = response.data.covers;
+                    let data = response.data.covers;
+                    data.forEach((item) => {
+                        let url = ''
+                        if (item.coverImage) {
+                            let imageName = item.coverImage.substring(4)
+                            for (let i = 0; i < this.photoOriginal.length; i++) {
+                                if (imageName === this.photoOriginal[i].name) {
+                                    url = this.photoOriginal[i].url;
+                                    break;
+                                }
+                            }
+                        }
+                        this.photoAlbums.push({
+                            albumName: item.albumName,
+                            coverImage: url
+                        });
+                    });
                 } else {
                     this.$message.error(response.data.message);
                 }
@@ -269,10 +287,13 @@ export default {
     created() {
         console.log(this.$route.query);
         this.userName = this.$route.query.username;
-    },
-    mounted() {
+        const photoOriginal = localStorage.getItem('photoOriginal');
+        if (photoOriginal) {
+            this.photoOriginal = Array.from(JSON.parse(photoOriginal));
+            console.log(this.photoOriginal);
+        }
         this.initPhoteAbulm();
-    }
+    },
 }
 </script>
 
