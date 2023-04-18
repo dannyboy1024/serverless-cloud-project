@@ -441,7 +441,8 @@ def get_album_names():
                     fileFormat = fileName.split('.')[1]
                     full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
                     s3client.download_file(imageTableName, item['Key'], full_file_path)
-                    coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                    # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                    coverImage = fileName
                     break
         covers.append({"albumName" : albumName, "coverImage" : coverImage})
     resp = {
