@@ -374,7 +374,8 @@ def sage_create_albums():
                         fileFormat = fileName.split('.')[1]
                         full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
                         s3client.download_file(fileBucketName, item['Key'], full_file_path)
-                        coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                        # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                        coverImage = fileName
                         break
             covers.append({"albumName" : albumName, "coverImage" : coverImage}) 
 
@@ -393,7 +394,8 @@ def sage_create_albums():
                 fileFormat = fileName.split('.')[1]
                 full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
                 s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
-                coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                coverImage = fileName
                 covers.append({"albumName" : albumName, "coverImage" : coverImage})
             else:
                 covers.append({"albumName" : albumName, "coverImage" : None}) 
