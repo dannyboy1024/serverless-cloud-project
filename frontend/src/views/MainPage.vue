@@ -172,7 +172,6 @@ export default {
                             type: 'success'
                         });
                         this.visible.addNewDialog = false;
-                        this.initPhoteAbulm();
                         location.reload();
                     } else {
                         this.$message.error(response.data.message);
@@ -318,7 +317,6 @@ export default {
             console.log(this.photoOriginal);
         }
         this.initPhoteAbulm();
-        location.reload();
     },
 }
 </script>
