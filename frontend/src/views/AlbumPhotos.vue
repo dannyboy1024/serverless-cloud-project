@@ -282,7 +282,7 @@ export default {
                     if (res.status === 200) {
                         this.photoAlbums = [];
                         res.data.images.forEach((v) => {
-                        let name = v.name;
+                        let name = v.name.substring(4);
                         for (let i = 0; i < this.photoOriginal.length; i++) {
                             if (this.photoOriginal[i].name === name) {
                                 this.photoAlbums.push({
