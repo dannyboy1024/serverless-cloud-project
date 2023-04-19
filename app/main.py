@@ -15,10 +15,9 @@ from datetime import datetime, timedelta
 import logging
 
 # AWS Setup
-# webapp_url = 'https://3bynfupmn3.execute-api.us-east-1.amazonaws.com/dev'
+webapp_url = 'https://3bynfupmn3.execute-api.us-east-1.amazonaws.com/dev'
 # webapp_url = 'http://192.168.2.14:5051'
-webapp_url = 'http://127.0.0.1:5000'
-# os_file_path = '/tmp'
+# webapp_url = 'http://127.0.0.1:5000'
 os_file_path = os.getcwd()
 
 @webapp.route('/')
@@ -76,8 +75,8 @@ def upload_image():
     imageFormat   = imageName.split('.')[1]
     imageLocation = os.path.join(os_file_path, 'tmpFile.'+imageFormat)
     value = base64.b64encode(str(imageContent).encode())
-    requestJson = {'value': value, 'path': imageLocation}
-    requests.post(webapp_url + '/helper/writeFile', params=requestJson)
+    # requestJson = {'value': value, 'path': imageLocation}
+    # requests.post(webapp_url + '/helper/writeFile', params=requestJson)
     isAuto = session['isAuto']
     mode = 'auto' if isAuto else 'manual'
     
@@ -91,7 +90,7 @@ def upload_image():
         db.deleteEntry(imageTableName, imageName)
     
     # Upload the image to the s3 bucket and insert a new entry to the image table
-    s3client.upload_file(imageLocation, imageTableName, imageName)
+    # s3client.upload_file(imageLocation, imageTableName, imageName)
     db.insertEntry(imageTableName, FILEINFO(imageName, imageBucketName, imageLocation, imageSize))
     
     resp = OrderedDict([("success", True), ("album", albumName)])
@@ -360,23 +359,26 @@ def sage_create_albums():
                 db.insertEntry(autoImageTableName, imageInfo)
 
         # Return the automatically created album names and their covers
-        for albumName, _ in albumMp.items():
+        print('cover')
+        for albumName, imageIdxList in albumMp.items():
+            print(albumName)
+            print(imageIdxList[0])
             autoImageTableName = accoID+'-'+albumName+'-'+mode+'-images'
-            firstReq = allImageReqs[0]
+            firstReq = allImageReqs[imageIdxList[0]]
             fileName = firstReq['S3Object']['Name']
             fileBucketName = firstReq['S3Object']['Bucket']
-            coverImage = None
-            resp = s3client.list_objects_v2(Bucket=fileBucketName)
-            if 'Contents' in resp:
-                for item in resp['Contents']:
-                    fileName = os.path.basename(item['Key'])
-                    if fileName.startswith('url'):
-                        fileFormat = fileName.split('.')[1]
-                        full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
-                        s3client.download_file(fileBucketName, item['Key'], full_file_path)
-                        # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-                        coverImage = fileName
-                        break
+            coverImage = 'url_'+fileName
+            # coverImage = None
+            # resp = s3client.list_objects_v2(Bucket=fileBucketName)
+            # if 'Contents' in resp:
+            #     for item in resp['Contents']:
+            #         fileName = os.path.basename(item['Key'])
+            #         # fileFormat = fileName.split('.')[1]
+            #         # full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
+            #         # s3client.download_file(fileBucketName, item['Key'], full_file_path)
+            #         # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+            #         coverImage = 'url_'+fileName
+            #         break
             covers.append({"albumName" : albumName, "coverImage" : coverImage}) 
 
     # Exiting the auto mode
@@ -390,13 +392,15 @@ def sage_create_albums():
             imageTableName = accoID+'-'+albumName+'-'+mode+'-images'
             resp = s3client.list_objects_v2(Bucket=imageTableName)
             if 'Contents' in resp:
-                firstItem = resp['Contents'][0]
-                fileFormat = fileName.split('.')[1]
-                full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
-                s3client.download_file(imageTableName, firstItem['Key'], full_file_path)
-                # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-                coverImage = fileName
-                covers.append({"albumName" : albumName, "coverImage" : coverImage})
+                for item in resp['Contents']:
+                    fileName = os.path.basename(item['Key'])
+                    # fileFormat = fileName.split('.')[1]
+                    # full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
+                    # s3client.download_file(imageTableName, item['Key'], full_file_path)
+                    # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                    coverImage = 'url_'+fileName
+                    covers.append({"albumName" : albumName, "coverImage" : coverImage})
+                    break
             else:
                 covers.append({"albumName" : albumName, "coverImage" : None}) 
     
@@ -439,13 +443,12 @@ def get_album_names():
         if 'Contents' in resp:
             for item in resp['Contents']:
                 fileName = os.path.basename(item['Key'])
-                if fileName.startswith('url'):
-                    fileFormat = fileName.split('.')[1]
-                    full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
-                    s3client.download_file(imageTableName, item['Key'], full_file_path)
-                    # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-                    coverImage = fileName
-                    break
+                fileFormat = fileName.split('.')[1]
+                full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
+                s3client.download_file(imageTableName, item['Key'], full_file_path)
+                # coverImage = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                coverImage = 'url_'+fileName
+                break
         covers.append({"albumName" : albumName, "coverImage" : coverImage})
     resp = {
         "success" : True,
@@ -482,12 +485,13 @@ def display_album():
     fileNames  = []
     for imageInfo in imageInfoList:
         fileName = imageInfo.fileName
-        bucketName = imageInfo.fileBucket
-        fileFormat = fileName.split('.')[1]
-        full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
-        s3client.download_file(bucketName, fileName, full_file_path)
-        value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-        fileValues.append(value)
+        # bucketName = imageInfo.fileBucket
+        # fileFormat = fileName.split('.')[1]
+        # full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
+        # s3client.download_file(bucketName, fileName, full_file_path)
+        # value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+        # fileValues.append(value)
+        fileValues.append(fileName)
         fileNames.append(fileName)
 
     resp = OrderedDict()
@@ -540,16 +544,16 @@ def sage_display_album():
             labelName = label['Name']
             print(labelName)
             if labelName in targetLabels:
-                fileFormat = fileName.split('.')[1]
-                full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
-                s3client.download_file(imageTableName, imageInfo.fileName, full_file_path)
-                value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
-                fileValues.append(value)
+                # fileFormat = fileName.split('.')[1]
+                # full_file_path = os.path.join(os_file_path, 'tmpFile.'+fileFormat)
+                # s3client.download_file(imageTableName, imageInfo.fileName, full_file_path)
+                # value = bytes.decode(base64.b64decode(Path(full_file_path).read_text()))
+                fileValues.append()
                 fileNames.append(fileName)
                 break
 
     resp = OrderedDict()
-    files = [{'content' : fileValues[i], 'name' : fileNames[i]} for i in range(len(fileNames))]
+    files = [{'content' : fileValues[i], 'name' : 'url_'+fileNames[i]} for i in range(len(fileNames))]
     resp["images"] = files
     print(resp)
     response = webapp.response_class(
