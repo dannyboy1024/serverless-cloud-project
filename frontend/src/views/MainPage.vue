@@ -223,6 +223,7 @@ export default {
                     '/api/sage_create_albums', form
                 ).then((response) => {
                     if (response.status === 200) {
+                        console.log(response);
                         let data = response.data;
                         this.photoAlbums = [];
                         data.covers.forEach((item) => {
