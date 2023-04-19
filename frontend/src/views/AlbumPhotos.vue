@@ -15,7 +15,7 @@
                 <div style="float: left">
                     <el-input v-model="search" style="width:200px"></el-input>
                     &nbsp;&nbsp;&nbsp;&nbsp;
-                    <el-button type="primary" slot="append" icon="el-icon-search" @click="searchAlbum()" v-loading.fullscreen.lock="loading" element-loading-text="Searching">search</el-button>
+                    <el-button type="primary" slot="append" icon="el-icon-search" @click="searchAlbum()" v-loading.fullscreen.lock="loading" element-loading-text="Searching">filter</el-button>
                 </div>
             </el-col>
             <br> <br><br>
@@ -247,6 +247,9 @@ export default {
                         });
                         this.uploadInfo.dialogVisible = false;
                         this.photoOriginal = this.photoOriginal.filter((v) => {
+                            return v.name !== name;
+                        })
+                        this.photoAlbums = this.photoAlbums.filter((v) => {
                             return v.name !== name;
                         })
                     } else {
