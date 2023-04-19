@@ -318,6 +318,7 @@ export default {
             console.log(this.photoOriginal);
         }
         this.initPhoteAbulm();
+        location.reload();
     },
 }
 </script>
